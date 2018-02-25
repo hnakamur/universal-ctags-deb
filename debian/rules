@@ -1,0 +1,18 @@
+#!/usr/bin/make -f
+
+# this will avoid unneded dependencies
+export DEB_LDFLAGS_MAINT_APPEND = -Wl,--as-needed
+
+# enable all hardening options
+export DEB_BUILD_MAINT_OPTIONS = hardening=+all
+
+%:
+	dh $@ --with=autoreconf
+
+override_dh_autoreconf:
+	misc/dist-test-cases > makefiles/test-cases.mak
+	dh_autoreconf
+
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		--program-transform-name='s/ctags/ctags-universal/'

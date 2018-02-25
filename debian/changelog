@@ -1,0 +1,5 @@
+universal-ctags (0+git20180225-1) unstable; urgency=medium
+
+  * Initial release (Closes: #797359)
+
+ -- Alessandro Ghedini <ghedo@debian.org>  Sun, 25 Feb 2018 21:29:37 +0000

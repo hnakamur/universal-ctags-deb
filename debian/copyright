@@ -1,0 +1,484 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: universal-ctags
+Source: https://github.com/universal-ctags/ctags
+
+Files: *
+Copyright: 2009, Darren Hiebert and others
+License: GPL-2+
+
+Files: Tmain/*/run.sh
+Copyright: 2015-2018, Masatake YAMATO
+License: GPL-2+
+
+Files: Tmain/input-encoding-option.d/run.sh
+Copyright: 2015, Yasuhiro MATSUMOTO
+License: GPL-2+
+
+Files: Tmain/interactive-mode.d/run.sh
+Copyright: 2016, Aman Gupta
+License: GPL-2+
+
+Files: Tmain/json-output-format.d/run.sh
+Copyright: 2016, Aman Gupta
+License: GPL-2+
+
+Files: Tmain/output-encoding-option.d/run.sh
+Copyright: 2015, Yasuhiro MATSUMOTO
+License: GPL-2+
+
+Files: Units/parser-cxx.r/cxx-keywords-as-c-identifiers.b/gen-expected-tags.sh
+  Units/parser-cxx.r/cxx-keywords-as-c-identifiers.b/gen-input.sh
+Copyright: 2015-2018, Masatake YAMATO
+License: GPL-2+
+
+Files: Units/parser-dtd.r/colons-in-name.d/*
+Copyright: 2000, 2010, Oracle and/or its affiliates.
+License: LGPL-3
+
+Files: Units/parser-ldscript.r/simple-ldscript.d/input.lds.S
+Copyright: 2007-2009, Sam Ravnborg <sam@ravnborg.org>
+License: GPL-2+
+
+Files: Units/parser-xslt.r/xslt-simple.d/input.xsl
+Copyright: 1996-2017, Free Software Foundation, Inc.
+License: GPL-2+
+
+Files: Units/tex-review-needed.r/bug2886870.tex.t/*
+Copyright: 2006, Harvey Gould
+License: GPL-2+
+
+Files: Units/tex-review-needed.r/intro_orig.tex.t/*
+Copyright: 2006, Harvey Gould
+License: GPL-2+
+
+Files: debian/*
+Copyright: 2018, Alessandro Ghedini
+License: GPL-2+
+
+Files: dsl/*
+Copyright: 2009, Masatake YAMATO
+License: Expat
+
+Files: dsl/qualifier.c
+  dsl/qualifier.h
+Copyright: 2014-2017, Red Hat, Inc.
+  2014-2017, Masatake YAMATO
+License: GPL-2+
+
+Files: fnmatch/*
+Copyright: 1992, Free Software Foundation, Inc.
+License: LGPL-2+
+
+Files: gnu_regex/*
+Copyright: 2002-2009, Free Software Foundation, Inc.
+License: LGPL-2.1+
+
+Files: gnu_regex/regex.h
+Copyright: 1985, 1989-1993, 1995-1998, 2000-2003, 2005, 2006, 2008
+License: LGPL-2.1+
+
+Files: main/colprint.c
+  main/colprint.h
+Copyright: 2014, 2016, 2017, Masatake YAMATO
+License: GPL-2+
+
+Files: main/dependency.c
+  main/dependency.h
+  main/field.c
+  main/field.h
+  main/fmt.c
+  main/fmt.h
+  main/htable.c
+  main/htable.h
+  main/kind.c
+  main/lxpath.c
+  main/lxpath.h
+  main/param.c
+  main/param.h
+  main/promise.c
+  main/promise.h
+  main/ptag.h
+  main/subparser.h
+  main/trashbox.h
+  main/writer.c
+  main/writer.h
+  main/xtag.c
+  main/xtag.h
+Copyright: 2014-2017, Red Hat, Inc.
+  2014-2017, Masatake YAMATO
+License: GPL-2+
+
+Files: main/entry_private.c
+  main/entry_private.h
+Copyright: 2017, Red Hat, INc.
+  2017, Masatake YAMATO
+License: GPL-2+
+
+Files: main/inline.h
+Copyright: 2016, 2017, Matthew Brush
+License: GPL-2+
+
+Files: main/interactive.h
+  main/writer-json.c
+Copyright: 2016, Aman Gupta
+License: GPL-2+
+
+Files: main/lregex.h
+  main/ptag.c
+Copyright: 2016, 2017, Red Hat, Inc.
+  2016, 2017, Masatake YAMATO
+  1996-2003, Darren Hiebert
+License: GPL-2+
+
+Files: main/mbcs.c
+  main/mbcs.h
+Copyright: 2015, vim-jp
+License: GPL-2+
+
+Files: main/mio.c
+  main/mio.h
+Copyright: 2010, 2013, Colomban Wendling <ban@herbesfolles.org>
+License: GPL-2+
+
+Files: main/nestlevel.c
+  main/nestlevel.h
+Copyright: 2009-2011, Nick Treleaven <nick(dot)treleaven(at)btinternet(dot)com>
+  1999-2002, Darren Hiebert
+License: GPL-2+
+
+Files: main/objpool.c
+  main/objpool.h
+Copyright: 2016, Jiri Techet
+License: GPL-2+
+
+Files: main/portable-dirent.h
+Copyright: 2006-2012, Toni Ronkko
+License: GPL-2+
+
+Files: main/seccomp.c
+Copyright: 2017, Google, Inc.
+License: GPL-2+
+
+Files: main/selectors.c
+  main/selectors.h
+Copyright: 2015, Dmitri Tikhonov
+License: GPL-2+
+
+Files: main/tokeninfo.c
+  main/tokeninfo.h
+Copyright: 2016, Red Hat, Inc.
+  2016, Masatake YAMATO <yamato@redhat.com>
+License: GPL-2+
+
+Files: main/trace.c
+  main/trace.h
+Copyright: 2016, Szymon Tomasz Stefanek
+License: GPL-2+
+
+Files: main/trashbox.c
+Copyright: 2014, Red Hat, Inc.
+  2014, Masatake YAMATO
+License: GPL-2+
+
+Files: man/Makefile
+Copyright: 2017, Red Hat, Inc.
+  2017, Masatake YAMMATO
+License: GPL-2+
+
+Files: misc/*
+Copyright: 2014, 2016, 2017, Masatake YAMATO
+License: GPL-2+
+
+Files: misc/cspell
+  misc/optlib2c
+Copyright: 2016, 2017, Red Hat Inc.
+  2016, 2017, Masatake YAMATO
+License: GPL-2+
+
+Files: misc/make-dictfiles.sh
+Copyright: 2014-2017, Red Hat, Inc.
+  2014-2017, Masatake YAMATO
+License: GPL-2+
+
+Files: misc/mk-interactive-request.sh
+Copyright: 2014, 2015, Masatake YAMATO
+License: GPL-3+
+
+Files: misc/travis-check.sh
+Copyright: 2014, 2015, Masatake YAMATO
+License: GPL-2+
+
+Files: parsers/ansibleplaybook.c
+  parsers/dbusintrospect.c
+  parsers/glade.c
+  parsers/jprop.c
+  parsers/maven2.c
+  parsers/plist.c
+  parsers/relaxng.c
+  parsers/svg.c
+  parsers/xslt.c
+  parsers/yaml.h
+Copyright: 2015, 2016, Red Hat, K.K.
+  2015, 2016, Masatake YAMATO
+License: GPL-2+
+
+Files: parsers/ant.c
+  parsers/dosbatch.c
+  parsers/flex.c
+  parsers/matlab.c
+Copyright: 2008, 2009, David Fishburn
+License: GPL-2+
+
+Files: parsers/asp.c
+Copyright: 2000, Patrick Dehne <patrick@steidle.net>
+License: GPL-2+
+
+Files: parsers/autoconf.c
+  parsers/json.c
+  parsers/m4.c
+Copyright: 2011, 2014, Colomban Wendling <colomban@geany.org>
+License: GPL-2+
+
+Files: parsers/autoit.c
+Copyright: 2017, Alexey Olenich
+License: GPL-2+
+
+Files: parsers/basic.c
+Copyright: 2000-2006, Darren Hiebert, Elias Pschernig
+License: GPL-2+
+
+Files: parsers/beta.c
+Copyright: 1999, 2000, Mjølner Informatics
+License: GPL-2+
+
+Files: parsers/clojure.c
+Copyright: 2015, Miloslav Nenadál <nenadalm@gmail.com>
+License: GPL-2+
+
+Files: parsers/ctags-aspell.c
+  parsers/pythonloggingconfig.c
+  parsers/yumrepo.c
+Copyright: 2016, 2017, Red Hat, K.K.
+  2016, 2017, Masatake YAMATO <yamato@redhat.com>
+License: GPL-2+
+
+Files: parsers/cxx/*
+Copyright: 2016, Szymon Tomasz Stefanek
+License: GPL-2+
+
+Files: parsers/cxx/cxx_qtmoc.c
+  parsers/cxx/cxx_subparser.c
+  parsers/cxx/cxx_subparser.h
+  parsers/cxx/cxx_subparser_internal.h
+Copyright: 2014-2017, Red Hat, Inc.
+  2014-2017, Masatake YAMATO
+License: GPL-2+
+
+Files: parsers/dtd.c
+  parsers/ldscript.c
+  parsers/rpmspec.c
+  parsers/systemdunit.c
+  parsers/yaml.c
+Copyright: 2014-2017, Red Hat, Inc.
+  2014-2017, Masatake YAMATO
+License: GPL-2+
+
+Files: parsers/dts.c
+Copyright: 2015, André Rivotti Casimiro <andre.r.casimiro@gmail.com>
+License: GPL-2+
+
+Files: parsers/erlang.c
+Copyright: 2003, Brent Fulgham <bfulgham@debian.org>
+License: GPL-2+
+
+Files: parsers/falcon.c
+Copyright: 2011, 2012, Steven Oliver <oliver.steven@gmail.com>
+License: GPL-2+
+
+Files: parsers/html.c
+Copyright: 2016, Jiri Techet
+License: GPL-2+
+
+Files: parsers/itcl.c
+  parsers/m4.h
+  parsers/make.h
+  parsers/tcl.h
+  parsers/tcloo.c
+Copyright: 2014, 2016, 2017, Masatake YAMATO
+License: GPL-2+
+
+Files: parsers/lua.c
+Copyright: 2000, 2001, Max Ischenko <mfi@ukr.net>.
+License: GPL-2+
+
+Files: parsers/myrddin.c
+Copyright: 2016, Ori Bernstein
+License: GPL-2+
+
+Files: parsers/objc.c
+  parsers/ocaml.c
+Copyright: 2009, 2010, Vincent Berthoux
+License: GPL-2+
+
+Files: parsers/php.c
+Copyright: 2010, 2013, Colomban Wendling <ban@herbesfolles.org>
+License: GPL-2+
+
+Files: parsers/protobuf.c
+Copyright: 2011, Ivan Krasilnikov
+License: GPL-2+
+
+Files: parsers/python.c
+Copyright: 2014-2016, Colomban Wendling <ban@herbesfolles.org>
+  2000-2003, Darren Hiebert
+License: GPL-2+
+
+Files: parsers/r.c
+Copyright: 2003, 2004, Ascher Stefan <stievie@utanet.at>
+License: GPL-2+
+
+Files: parsers/robot.c
+Copyright: 2017, Daniel Riechers
+License: GPL-2+
+
+Files: parsers/rst.c
+Copyright: 2007-2011, Nick Treleaven
+License: GPL-2+
+
+Files: parsers/ruby.c
+Copyright: 2004, Elliott Hughes <enh@acm.org>
+  2002, Matthias Veit <matthias_veit@yahoo.de>
+  2000, 2001, Thaddeus Covert <sahuagin@mediaone.net>
+License: GPL-2+
+
+Files: parsers/slang.c
+Copyright: 2000, 2001, Francesc Rocher
+License: GPL-2+
+
+Files: parsers/sml.c
+Copyright: 2002, Venkatesh Prasad Ranganath and Darren Hiebert
+License: GPL-2+
+
+Files: parsers/tcl.c
+Copyright: 2016, 2017, Red Hat, Inc.
+  2016, 2017, Masatake YAMATO
+  1996-2003, Darren Hiebert
+License: GPL-2+
+
+Files: parsers/tex.c
+Copyright: 2012, Jan Larres
+  2008, David Fishburn
+License: GPL-2+
+
+Files: parsers/ttcn.c
+Copyright: 2009, Dmitry Peskov (dmitrypeskov@users.sourceforge.net)
+License: GPL-2+
+
+Files: parsers/vhdl.c
+Copyright: 2008, Nicolas Vincent
+License: GPL-2+
+
+Files: parsers/windres.c
+Copyright: 2013, Frank Fesevur <ffes(at)users.sourceforge.net>
+License: GPL-2+
+
+Files: parsers/yacc.c
+Copyright: 2001, 2002, Nick Hibma <n_hibma@van-laarhoven.org>
+License: GPL-2+
+
+License: Expat
+ The MIT License
+ .
+ Permission is hereby granted, free of charge, to any person
+ obtaining a copy of this software and associated
+ documentation files (the "Software"), to deal in the Software
+ without restriction, including without limitation the rights to
+ use, copy, modify, merge, publish, distribute, sublicense,
+ and/or sell copies of the Software, and to permit persons to
+ whom the Software is furnished to do so, subject to the
+ following conditions:
+ .
+ The above copyright notice and this permission notice shall
+ be included in all copies or substantial portions of the
+ Software.
+ .
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT
+ WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+ MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ PURPOSE AND NONINFRINGEMENT. IN NO EVENT
+ SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+ CONNECTION WITH THE SOFTWARE OR THE USE OR
+ OTHER DEALINGS IN THE SOFTWARE.
+
+License: GPL-2+
+ This package is free software; you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 2 of the License, or
+ (at your option) any later version.
+ .
+ This package is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License
+ along with this program. If not, see <https://www.gnu.org/licenses/>
+ .
+ On Debian systems, the complete text of the GNU General
+ Public License version 2 can be found in "/usr/share/common-licenses/GPL-2".
+
+License: GPL-3+
+ This program is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation; either version 3 of the License, or
+ (at your option) any later version.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ .
+ You should have received a copy of the GNU General Public License
+ along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ .
+ On Debian systems, the complete text of the GNU General Public
+ License version 3 can be found in `/usr/share/common-licenses/GPL-3'.
+
+License: LGPL-2+
+ This program is free software; you can redistribute it and/or modify it
+ under the terms of the GNU Library General Public License as published by the
+ Free Software Foundation; version 2 of the License, or (at
+ your option) any later version.
+ .
+ On Debian systems, the complete text of version 2 of the GNU Library
+ General Public License can be found in `/usr/share/common-licenses/LGPL-2'.
+
+License: LGPL-2.1+
+ This program is free software; you can redistribute it and/or modify
+ it under the terms of the GNU Lesser General Public License as published by
+ the Free Software Foundation; either version 2.1, or (at your option)
+ any later version.
+ .
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU Lesser General Public License for more details.
+ .
+ You should have received a copy of the GNU Lesser General Public License along
+ with this program; if not, write to the Free Software Foundation,
+ Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ .
+ On Debian systems, the complete text of the GNU Lesser General Public
+ License version 2.1 can be found in ‘/usr/share/common-licenses/LGPL-2.1’.
+
+License: LGPL-3
+ This program is free software; you can redistribute it and/or modify it
+ under the terms of the GNU Lesser General Public License as published by the
+ Free Software Foundation; version 3 of the License.
+ .
+ On Debian systems, the complete text of version 3 of the GNU Lesser
+ General Public License can be found in `/usr/share/common-licenses/LGPL-3'.
