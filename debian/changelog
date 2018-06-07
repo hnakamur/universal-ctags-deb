@@ -1,3 +1,9 @@
+universal-ctags (0+SNAPSHOT20180606-1ubuntu1ppa1~ubuntu18.04.1) bionic; urgency=medium
+
+  * New upstream version 0+SNAPSHOT20180606
+
+ -- Hiroaki Nakamura <hnakamur@gmail.com>  Thu, 07 Jun 2018 14:45:40 +0900
+
 universal-ctags (0+SNAPSHOT20180225-1ubuntu1ppa1~ubuntu18.04.1) bionic; urgency=medium
 
   * Add build dependencies
