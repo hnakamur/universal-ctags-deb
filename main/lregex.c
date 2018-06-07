@@ -35,7 +35,6 @@
 #include "parse.h"
 #include "read.h"
 #include "routines.h"
-#include "ptrarray.h"
 #include "trashbox.h"
 
 static bool regexAvailable = false;
@@ -46,6 +45,18 @@ static bool regexAvailable = false;
 
 /* Back-references \0 through \9 */
 #define BACK_REFERENCE_COUNT 10
+
+/* The max depth of taction=enter/leave stack */
+#define MTABLE_STACK_MAX_DEPTH 64
+
+/* How many times ctags allows a mtable parser
+   stays at the same input position across table switching.
+
+   The value is derived from MTABLE_STACK_MAX_DEPTH.
+   No deep meaning is in that. It just for simplifying
+   Tmain cases. */
+#define MTABLE_MOTIONLESS_MAX (MTABLE_STACK_MAX_DEPTH + 1)
+
 
 /*
 *   DATA DECLARATIONS
@@ -99,6 +110,7 @@ typedef struct {
 	union {
 		struct {
 			int kindIndex;
+			roleBitsType roleBits;
 			char *name_pattern;
 		} tag;
 		struct {
@@ -232,13 +244,13 @@ extern void freeLregexControlBlock (struct lregexControlBlock* lcb)
 */
 
 static bool initRegexTag (tagEntryInfo *e,
-		const vString* const name, int kindIndex, int scopeIndex, int placeholder,
+		const vString* const name, int kindIndex, int roleIndex, int scopeIndex, int placeholder,
 		unsigned long line, MIOPos *pos, int xtag_type)
 {
 	if (isInputLanguageKindEnabled (kindIndex))
 	{
 		Assert (name != NULL  &&  ((vStringLength (name) > 0) || placeholder));
-		initTagEntry (e, vStringValue (name), kindIndex);
+		initRefTagEntry (e, vStringValue (name), kindIndex, roleIndex);
 		e->extensionFields.scopeIndex = scopeIndex;
 		e->placeholder = !!placeholder;
 		if (line)
@@ -337,6 +349,12 @@ static bool parseTagRegex (
 			error (WARNING, "%s: regexp missing final separator", regexp);
 		else
 		{
+			/*
+			 * first----------V third------------V
+			 * --regex-<LANG>=/regexp/replacement/[kind-spec/][flags]
+			 * second----------------^ fourth---------------^
+			 */
+
 			char* const fourth = scanSeparators (third, false);
 			if (*fourth == separator)
 			{
@@ -447,7 +465,7 @@ static regexPattern * refPattern (regexPattern * ptrn)
 static regexPattern * newPattern (regex_t* const pattern,
 								  enum regexParserType regptype)
 {
-	regexPattern*ptrn = xCalloc(1, regexPattern);
+	regexPattern *ptrn = xCalloc(1, regexPattern);
 
 	ptrn->pattern = pattern;
 	ptrn->exclusive = false;
@@ -459,6 +477,7 @@ static regexPattern * newPattern (regex_t* const pattern,
 	if (regptype == REG_PARSER_MULTI_TABLE)
 		initTaction(&ptrn->taction);
 
+	ptrn->u.tag.roleBits = 0;
 	ptrn->refcount = 1;
 	return ptrn;
 }
@@ -668,7 +687,7 @@ static void pre_ptrn_flag_field_long (const char* const s CTAGS_ATTR_UNUSED, con
 static flagDefinition fieldSpecFlagDef[] = {
 #define EXPERIMENTAL "_"
 	{ '\0',  EXPERIMENTAL "field", NULL, pre_ptrn_flag_field_long ,
-	  "FIELD:VALUE", "record the matched string(VALUE) to FIELD of the tag"},
+	  "FIELD:VALUE", "record the matched string(VALUE) to parser own FIELD of the tag"},
 };
 
 
@@ -753,6 +772,38 @@ static flagDefinition multitablePtrnFlagDef[] = {
 	  NULL, "stop the parsing with this parser"},
 };
 
+struct roleFlagData {
+	langType owner;
+	int kindIndex;
+	roleBitsType roleBits;
+};
+
+static void pre_ptrn_flag_role_long (const char* const s CTAGS_ATTR_UNUSED, const char* const v, void* data)
+{
+	struct roleFlagData *rdata = data;
+	roleDefinition * role;
+
+	if (!v)
+	{
+		error (WARNING, "no value is given for: %s", s);
+		return;
+	}
+
+	role = getLanguageRoleForName(rdata->owner,
+								  rdata->kindIndex, v);
+	if (!role)
+	{
+		error (WARNING, "no such role: %s", v);
+		return;
+	}
+
+	rdata->roleBits |= makeRoleBit(role->id);
+}
+
+static flagDefinition roleSpecFlagDef[] = {
+	{ '\0',  EXPERIMENTAL "role", NULL, pre_ptrn_flag_role_long,
+	  "ROLE", "Set given ROLE to roles field"},
+};
 
 static regexPattern *addCompiledTagPattern (struct lregexControlBlock *lcb,
 											int table_index,
@@ -775,6 +826,10 @@ static regexPattern *addCompiledTagPattern (struct lregexControlBlock *lcb,
 
 	struct mtableFlagData mtableFlagData = {
 		.lcb = lcb,
+	};
+
+	struct roleFlagData roleFlagData = {
+		.owner = lcb->owner,
 	};
 
 	if (regptype == REG_PARSER_SINGLE_LINE)
@@ -827,6 +882,13 @@ static regexPattern *addCompiledTagPattern (struct lregexControlBlock *lcb,
 
 		ptrn->u.tag.kindIndex = kdef->id;
 	}
+
+	roleFlagData.kindIndex = ptrn->u.tag.kindIndex;
+	roleFlagData.roleBits = 0;
+
+	flagsEval (flags, roleSpecFlagDef, ARRAY_SIZE(roleSpecFlagDef), &roleFlagData);
+	ptrn->u.tag.roleBits = roleFlagData.roleBits;
+
 	return ptrn;
 }
 
@@ -1067,6 +1129,7 @@ static void matchTagPattern (struct lregexControlBlock *lcb,
 		MIOPos pos;
 		tagEntryInfo e;
 		int kind;
+		roleBitsType roleBits;
 
 		if ((patbuf->regptype == REG_PARSER_MULTI_LINE)
 			|| (patbuf->regptype == REG_PARSER_MULTI_TABLE))
@@ -1077,8 +1140,9 @@ static void matchTagPattern (struct lregexControlBlock *lcb,
 
 		n = CORK_NIL;
 		kind = patbuf->u.tag.kindIndex;
+		roleBits = patbuf->u.tag.roleBits;
 
-		if (initRegexTag (&e, name, kind, scope, placeholder,
+		if (initRegexTag (&e, name, kind, ROLE_INDEX_DEFINITION, scope, placeholder,
 						  ln, ln == 0? NULL: &pos, patbuf->xtagType))
 		{
 			static TrashBox* field_trashbox;
@@ -1101,6 +1165,19 @@ static void matchTagPattern (struct lregexControlBlock *lcb,
 						trashBoxPut (field_trashbox, value,
 									 (TrashBoxDestroyItemProc)vStringDelete);
 					}
+				}
+			}
+
+			if (roleBits)
+			{
+				int roleIndex;
+
+				for (roleIndex = 0;
+					 roleIndex < countLanguageRoles(e.langType, kind);
+					 roleIndex++)
+				{
+					if (roleBits & makeRoleBit(roleIndex))
+						assignRole (&e, roleIndex);
 				}
 			}
 			n = makeTagEntry (&e);
@@ -1180,42 +1257,57 @@ static bool matchMultilineRegexPattern (struct lregexControlBlock *lcb,
 	bool result = false;
 	regmatch_t pmatch [BACK_REFERENCE_COUNT];
 	int match = 0;
+	unsigned int delta = 1;
 
 	if (patbuf->disabled && *(patbuf->disabled))
 		return false;
 
-	start = vStringValue (allLines);
-	for (current = start;
-	     match == 0 && current < start + vStringLength (allLines);
-	     current += (patbuf->mgroup.nextFromStart
-					 ? pmatch [patbuf->mgroup.forNextScanning].rm_so
-					 : pmatch [patbuf->mgroup.forNextScanning].rm_eo))
+	current = start = vStringValue (allLines);
+	do
 	{
 		match = regexec (patbuf->pattern, current,
-				 BACK_REFERENCE_COUNT, pmatch, 0);
-		if (match == 0)
+						 BACK_REFERENCE_COUNT, pmatch, 0);
+		if (match != 0)
 		{
-			patbuf->statistics.match++;
-			if (patbuf->type == PTRN_TAG)
-			{
-				matchTagPattern (lcb, current, patbuf, pmatch,
-								 (current
-								  + pmatch [patbuf->mgroup.forLineNumberDetermination].rm_so)
-								 - start);
-				result = true;
-			}
-			else if (patbuf->type == PTRN_CALLBACK)
-				;	/* Not implemented yet */
-			else
-			{
-				Assert ("invalid pattern type" == NULL);
-				result = false;
-				break;
-			}
-		}
-		else
 			patbuf->statistics.unmatch++;
-	}
+			break;
+		}
+
+		patbuf->statistics.match++;
+		if (patbuf->type == PTRN_TAG)
+		{
+			matchTagPattern (lcb, current, patbuf, pmatch,
+							 (current
+							  + pmatch [patbuf->mgroup.forLineNumberDetermination].rm_so)
+							 - start);
+			result = true;
+		}
+		else if (patbuf->type == PTRN_CALLBACK)
+			;	/* Not implemented yet */
+		else
+		{
+			Assert ("invalid pattern type" == NULL);
+			result = false;
+			break;
+		}
+
+		delta = (patbuf->mgroup.nextFromStart
+				 ? pmatch [patbuf->mgroup.forNextScanning].rm_so
+				 : pmatch [patbuf->mgroup.forNextScanning].rm_eo);
+		if (delta == 0)
+		{
+			unsigned int offset = current - start;
+			error (WARNING,
+				   "a multi line regex pattern doesn't advance the input cursor: %s",
+				   patbuf->pattern_string);
+			error (WARNING, "Language: %s, input file: %s, pos: %u",
+				   getLanguageName (lcb->owner), getInputFileName(), offset);
+			break;
+		}
+		current += delta;
+
+	} while (current < start + vStringLength (allLines));
+
 	return result;
 }
 
@@ -1347,21 +1439,29 @@ static regexPattern *addTagRegexInternal (struct lregexControlBlock *lcb,
 
 	if (cp != NULL)
 	{
-		char kind;
+		char kindLetter;
 		char* kindName;
 		char* description;
+		kindDefinition* fileKind;
 
-		parseKinds (kinds, &kind, &kindName, &description);
-		if (kind == getLanguageKind (lcb->owner, KIND_FILE_INDEX)->letter)
+		parseKinds (kinds, &kindLetter, &kindName, &description);
+		fileKind = getLanguageKind (lcb->owner, KIND_FILE_INDEX);
+		if (kindLetter == fileKind->letter)
 			error (FATAL,
 				   "Kind letter \'%c\' used in regex definition \"%s\" of %s language is reserved in ctags main",
-				   kind,
+				   kindLetter,
+				   regex,
+				   getLanguageName (lcb->owner));
+		else if (kindName && (strcmp (kindName, fileKind->name) == 0))
+			error (FATAL,
+				   "Kind name \"%s\" used in regex definition \"%s\" of %s language is reserved in ctags main",
+				   kindName,
 				   regex,
 				   getLanguageName (lcb->owner));
 
 		rptr = addCompiledTagPattern (lcb, table_index,
 									  regptype, cp, name,
-									  kind, kindName, description, flags,
+									  kindLetter, kindName, description, flags,
 									  disabled);
 		rptr->pattern_string = escapeRegexPattern(regex);
 		if (kindName)
@@ -1539,6 +1639,7 @@ extern void printRegexFlags (bool withListHeader, bool machinable, FILE *fp)
 	flagsColprintAddDefinitions (table, scopePtrnFlagDef, ARRAY_SIZE (scopePtrnFlagDef));
 	flagsColprintAddDefinitions (table, extraSpecFlagDef, ARRAY_SIZE (extraSpecFlagDef));
 	flagsColprintAddDefinitions (table, fieldSpecFlagDef, ARRAY_SIZE (fieldSpecFlagDef));
+	flagsColprintAddDefinitions (table, roleSpecFlagDef, ARRAY_SIZE (roleSpecFlagDef));
 
 	flagsColprintTablePrint (table, withListHeader, machinable, fp);
 	colprintTableDelete(table);
@@ -1554,6 +1655,7 @@ extern void printMultilineRegexFlags (bool withListHeader, bool machinable, FILE
 	flagsColprintAddDefinitions (table, multilinePtrnFlagDef, ARRAY_SIZE (multilinePtrnFlagDef));
 	flagsColprintAddDefinitions (table, extraSpecFlagDef, ARRAY_SIZE (extraSpecFlagDef));
 	flagsColprintAddDefinitions (table, fieldSpecFlagDef, ARRAY_SIZE (fieldSpecFlagDef));
+	flagsColprintAddDefinitions (table, roleSpecFlagDef, ARRAY_SIZE (roleSpecFlagDef));
 
 	flagsColprintTablePrint (table, withListHeader, machinable, fp);
 	colprintTableDelete(table);
@@ -1571,6 +1673,7 @@ extern void printMultitableRegexFlags (bool withListHeader, bool machinable, FIL
 	flagsColprintAddDefinitions (table, scopePtrnFlagDef, ARRAY_SIZE (scopePtrnFlagDef));
 	flagsColprintAddDefinitions (table, extraSpecFlagDef, ARRAY_SIZE (extraSpecFlagDef));
 	flagsColprintAddDefinitions (table, fieldSpecFlagDef, ARRAY_SIZE (fieldSpecFlagDef));
+	flagsColprintAddDefinitions (table, roleSpecFlagDef, ARRAY_SIZE (roleSpecFlagDef));
 
 	flagsColprintTablePrint (table, withListHeader, machinable, fp);
 	colprintTableDelete(table);
@@ -1684,16 +1787,19 @@ static struct regexTable * matchMultitableRegexTable (struct lregexControlBlock 
 	const char *current;
 	regmatch_t pmatch [BACK_REFERENCE_COUNT];
 	const char *cstart = vStringValue(start);
+	unsigned int delta;
 
 
  restart:
 	current = cstart + *offset;
 
-#if 0
-	/* An empty regex // still matches empty input. */
-	if (*offset >= vStringLength(start))
+	/* Accept the case *offset == vStringLength(start)
+	   because we want an empty regex // still matches empty input. */
+	if (*offset > vStringLength(start))
+	{
+		*offset = vStringLength(start);
 		goto out;
-#endif
+	}
 
 	for (unsigned int i = 0; i < ptrArrayCount(table->patterns); i++)
 	{
@@ -1761,9 +1867,10 @@ static struct regexTable * matchMultitableRegexTable (struct lregexControlBlock 
 				}
 				END_VERBOSE();
 
-				*offset += (ptrn->mgroup.nextFromStart
-							? pmatch [ptrn->mgroup.forNextScanning].rm_so
-							: pmatch [ptrn->mgroup.forNextScanning].rm_eo);
+				delta = (ptrn->mgroup.nextFromStart
+						 ? pmatch [ptrn->mgroup.forNextScanning].rm_so
+						 : pmatch [ptrn->mgroup.forNextScanning].rm_eo);
+				*offset += delta;
 
 				switch (taction->action)
 				{
@@ -1841,6 +1948,18 @@ static struct regexTable * matchMultitableRegexTable (struct lregexControlBlock 
 
 				if (next)
 					break;
+
+				if (delta == 0)
+				{
+					error (WARNING, "Forcefully advance the input pos because");
+					error (WARNING, "following conditions for entering infinite loop are satisfied:");
+					error (WARNING, "+ matching the pattern succeeds,");
+					error (WARNING, "+ the next table is not given, and");
+					error (WARNING, "+ the input file pos doesn't advance.");
+					error (WARNING, "Language: %s, input file: %s, pos: %u",
+						   getLanguageName (lcb->owner), getInputFileName(), *offset);
+					++*offset;
+				}
 			}
 			else if (ptrn->type == PTRN_CALLBACK)
 				;	/* Not implemented yet */
@@ -1854,9 +1973,7 @@ static struct regexTable * matchMultitableRegexTable (struct lregexControlBlock 
 		else
 			ptrn->statistics.unmatch++;
 	}
-#if 0
  out:
-#endif
 	if (next == NULL && ptrArrayCount (lcb->tstack) > 0)
 	{
 		static int apop_count = 0;
@@ -1929,6 +2046,10 @@ extern bool matchMultitableRegex (struct lregexControlBlock *lcb, const vString*
 	struct regexTable *table = ptrArrayItem (lcb->tables, 0);
 	unsigned int offset = 0;
 
+	int motionless_counter = 0;
+	unsigned int last_offset;
+
+
 	while (table)
 	{
 
@@ -1944,7 +2065,41 @@ extern bool matchMultitableRegex (struct lregexControlBlock *lcb, const vString*
 			vStringDelete(v);
 		}
 		END_VERBOSE();
+
+		last_offset = offset;
 		table = matchMultitableRegexTable(lcb, table, allLines, &offset);
+
+		if (last_offset == offset)
+			motionless_counter++;
+		else
+			motionless_counter = 0;
+
+		if (motionless_counter > MTABLE_MOTIONLESS_MAX)
+		{
+			error (WARNING, "mtable<%s/%s>: the input cursor stays at %u in %s so long though the tables are switched",
+				   getLanguageName (lcb->owner),
+				   table->name, offset, getInputFileName ());
+			break;
+		}
+
+		if (table && (ptrArrayCount (lcb->tstack) > MTABLE_STACK_MAX_DEPTH))
+		{
+			unsigned int i;
+			struct regexTable *t;
+
+			error (WARNING, "mtable<%s/%s>: the tenter/tleave stack overflows at %u in %s",
+				   getLanguageName (lcb->owner),
+				   table->name, offset, getInputFileName ());
+			error (WARNING, "DUMP FROM THE TOP:");
+			/* TODO: ues dumpTstack */
+			for (i = ptrArrayCount(lcb->tstack); 0 < i; --i)
+			{
+				t = ptrArrayItem (lcb->tstack, i - 1);
+				error (WARNING, "%3u %s", i - 1, t->name);
+			}
+
+			break;
+		}
 	}
 
 	return true;

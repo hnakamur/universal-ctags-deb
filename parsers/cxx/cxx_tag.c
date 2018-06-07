@@ -19,7 +19,7 @@
 #include "xtag.h"
 
 #define CXX_COMMON_MACRO_ROLES(__langPrefix) \
-	static roleDesc __langPrefix##MacroRoles [] = { \
+	static roleDefinition __langPrefix##MacroRoles [] = { \
 		RoleTemplateUndef, \
 	}
 
@@ -28,7 +28,7 @@ CXX_COMMON_MACRO_ROLES(CXX);
 CXX_COMMON_MACRO_ROLES(CUDA);
 
 #define CXX_COMMON_HEADER_ROLES(__langPrefix) \
-	static roleDesc __langPrefix##HeaderRoles [] = { \
+	static roleDefinition __langPrefix##HeaderRoles [] = { \
 		RoleTemplateSystem, \
 		RoleTemplateLocal, \
 	}
@@ -320,6 +320,8 @@ vString * cxxTagSetProperties(unsigned int uProperties)
 		ADD_PROPERTY("deprecated");
 	if(uProperties & CXXTagPropertyScopedEnum)
 		ADD_PROPERTY("scopedenum");
+	if(uProperties & CXXTagPropertyFunctionTryBlock)
+		ADD_PROPERTY("fntryblock");
 
 	cxxTagSetField(CXXTagFieldProperties,vStringValue(pszProperties));
 
