@@ -1,0 +1,26 @@
+version: 2
+jobs:
+   build:
+     working_directory: ~/universal-ctags
+     docker:
+       - image: docker.io/fedora:latest
+     steps:
+       - run:
+           name: Install Git
+           command: |
+             dnf -y install git || :
+       - checkout
+       - run:
+           name: Install build tools
+           command: |
+             dnf -y install gcc automake autoconf pkgconfig bmake aspell-devel aspell-en libxml2-devel jansson-devel libyaml-devel findutils || :
+       - run:
+           name: Build
+           command: |
+             bash ./autogen.sh
+             ./configure --enable-debugging
+             bmake -j 2
+       - run:
+           name: Test
+           command: |
+             bmake check roundtrip CIRCLECI=1

@@ -1,0 +1,44 @@
+#
+#  Copyright (c) 2016, Mark Skipper
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301,
+# USA.
+#
+#
+--langdef=elm
+--map-elm=+.elm
+
+--kinddef-elm=m,module,Module
+--kinddef-elm=n,namespace,Renamed Imported Module
+--kinddef-elm=p,port,Port
+--kinddef-elm=t,type,Type Definition
+--kinddef-elm=c,constructor,Type Constructor
+--kinddef-elm=a,alias,Type Alias
+--kinddef-elm=f,function,Functions
+
+--regex-elm=/^(port[[:blank:]]+)?module[[:blank:]]+([[:upper:]][[:alnum:]_.]*)/\2/m/{scope=push}{exclusive}
+--regex-elm=/^import[[:blank:]]+[[:alnum:]_.]+[[:blank:]]+as[[:blank:]]+([[:alnum:]]+)/\1/n/{scope=clear}{exclusive}
+#
+# Following two patterns are just for clearing scope stack.
+# X in "import X" should be captured as a reference tag in the future.
+#
+--regex-elm=/^import[[:blank:]]+([[:alnum:]_.]+)[[:blank:]]exposing///{scope=clear}{exclusive}
+--regex-elm=/^import[[:blank:]]+([[:alnum:]_.]+)///{scope=clear}{exclusive}
+--regex-elm=/^port[[:blank:]]+([[:lower:]][[:alnum:]_]*).*/\1/p/{scope=clear}{exclusive}
+--regex-elm=/^type +([[:upper:]][[:alnum:]_]*.*)/\1/t/{scope=set}{exclusive}
+--regex-elm=/^[[:blank:]]+[|=][[:blank:]]+([[:upper:]][[:alnum:]_]*.*)$/\1/c/{scope=ref}{exclusive}
+--regex-elm=/^type[[:blank:]]+alias[[:blank:]]+([[:upper:]][[:alnum:]_]*[[:blank:][:alnum:]_]*)/\1/a/{scope=set}{exclusive}
+--regex-elm=/^([[:lower:]_][[:alnum:]_]*)[^=]*=$/\1/f/{scope=set}
+--regex-elm=/^[[:blank:]]+([[:lower:]_][[:alnum:]_]*)[^=]*=$/\1/f/{scope=ref}
