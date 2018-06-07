@@ -35,10 +35,18 @@ extern parserDefinition* GdbinitParser (void)
 	};
 
 	static kindDefinition GdbinitKindTable [] = {
-		{ true, 'd', "definition", "definitions" },
-		{ true, 'D', "document", "documents" },
-		{ true, 't', "toplevelVariable", "toplevel variables" },
-		{ true, 'l', "localVariable", "local variables" },
+		{
+		  true, 'd', "definition", "definitions",
+		},
+		{
+		  true, 'D', "document", "documents",
+		},
+		{
+		  true, 't', "toplevelVariable", "toplevel variables",
+		},
+		{
+		  true, 'l', "localVariable", "local variables",
+		},
 	};
 	static tagRegexTable GdbinitTagRegexTable [] = {
 		{"^#.*", "",
@@ -54,7 +62,7 @@ extern parserDefinition* GdbinitParser (void)
 	};
 
 
-	parserDefinition* const def = parserNew ("gdbinit");
+	parserDefinition* const def = parserNew ("Gdbinit");
 
 	def->enabled       = true;
 	def->extensions    = extensions;

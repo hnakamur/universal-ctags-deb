@@ -94,7 +94,7 @@ typedef struct sInputFile {
 	MIO        *mio;           /* MIO stream used for reading the file */
 	compoundPos    filePosition;  /* file position of current line */
 	unsigned int ungetchIdx;
-	int         ungetchBuf[3]; /* characters that were ungotten */
+	int         ungetchBuf[8]; /* characters that were ungotten */
 
 	bool bomFound;
 	/*  Contains data pertaining to the original `source' file in which the tag
@@ -739,6 +739,8 @@ extern void resetInputFile (const langType language)
 
 	if (File.line != NULL)
 		vStringClear (File.line);
+	if (hasLanguageMultilineRegexPatterns (language))
+		File.allLines = vStringNew ();
 
 	resetLangOnStack (& (File.input.langInfo), language);
 	File.input.lineNumber = File.input.lineNumberOrigin;
@@ -856,13 +858,9 @@ static vString *iFileGetLine (void)
 {
 	eolType eol;
 	langType lang = getInputLanguage();
-	bool use_multiline = hasLanguageMultilineRegexPatterns (lang);
 
 	if (File.line == NULL)
 		File.line = vStringNew ();
-
-	if (use_multiline && File.allLines == NULL)
-		File.allLines = vStringNew ();
 
 	eol = readLine (File.line, File.mio);
 
@@ -878,17 +876,20 @@ static vString *iFileGetLine (void)
 			parseLineDirective (vStringValue (File.line) + 1);
 		matchLanguageRegex (lang, File.line);
 
-		if (use_multiline)
+		if (File.allLines)
 			vStringCat (File.allLines, File.line);
 
 		return File.line;
 	}
 	else
 	{
-		if (use_multiline)
+		if (File.allLines)
 		{
 			matchLanguageMultilineRegex (lang, File.allLines);
 			matchLanguageMultitableRegex (lang, File.allLines);
+
+			/* To limit the execution of multiline/multitable parser(s) only
+			   ONCE, clear File.allLines field. */
 			vStringDelete (File.allLines);
 			File.allLines = NULL;
 		}

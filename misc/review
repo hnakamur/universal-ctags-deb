@@ -151,8 +151,10 @@ units_inspect_cmd_show_diff ()
 {
     local cmd=cat
 
-    if which colordiff > /dev/null; then
+    if which colordiff > /dev/null 2>&1; then
 	cmd=colordiff
+    elif which pygmentize > /dev/null 2>&1; then
+	cmd="pygmentize -l diff"
     fi
 
     inspect_cmd_show_generic $1 DIFF.tmp cat | ${cmd}
@@ -165,7 +167,7 @@ units_inspect_show_args_ctags ()
 
 pygmentize_or_cat ()
 {
-    if which pygmentize > /dev/null; then
+    if which pygmentize > /dev/null 2>&1; then
 	pygmentize -O "style=colorful,linenos=1" $1 2>/dev/null || cat -n $1
     else
 	cat -n $1
@@ -282,6 +284,11 @@ do_tmain_inspect()
     done
 }
 
+count ()
+{
+    echo $#
+}
+
 do_inspect ()
 {
     local a
@@ -305,9 +312,12 @@ do_inspect ()
 	esac
     done
 
-    for t0 in $(do_list ${including_known_bugs}); do
-	PS3="[[ $t0 ]]? "
-
+    local T=$(do_list ${including_known_bugs});
+    local total=$(count $T)
+    local i=1
+    for t0 in $T; do
+	PS3="[$i/$total [ $t0 ]]? "
+	i=$(( i + 1 ))
 	t=${t0#Units/}
 	t=${t#Tmain/}
 

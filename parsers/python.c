@@ -113,7 +113,7 @@ typedef enum {
  *                       Y = (kind:unknown, role:indirectly-imported, [scope:X])
  *                       Z = (kind:unknown, [nameref:X.Y]) */
 
-static roleDesc PythonModuleRoles [] = {
+static roleDefinition PythonModuleRoles [] = {
 	{ true, "imported",
 	  "imported modules" },
 	{ true, "namespace",
@@ -122,7 +122,7 @@ static roleDesc PythonModuleRoles [] = {
 	  "module imported in alternative name" },
 };
 
-static roleDesc PythonUnknownRoles [] = {
+static roleDefinition PythonUnknownRoles [] = {
 	{ true, "imported",   "imported from the other module" },
 	{ true, "indirectly-imported",
 	  "classes/variables/functions/modules imported in alternative name" },
@@ -1348,7 +1348,8 @@ static void finalize (langType language CTAGS_ATTR_UNUSED, bool initialized)
 
 extern parserDefinition* PythonParser (void)
 {
-	static const char *const extensions[] = { "py", "pyx", "pxd", "pxi", "scons", NULL };
+	static const char *const extensions[] = { "py", "pyx", "pxd", "pxi", "scons",
+											  "wsgi", NULL };
 	static const char *const aliases[] = { "python[23]*", "scons", NULL };
 	parserDefinition *def = parserNew ("Python");
 	def->kindTable = PythonKinds;

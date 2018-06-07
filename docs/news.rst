@@ -43,6 +43,7 @@ The following parsers have been added:
 * AutoIt
 * Clojure
 * CSS
+* Ctags option library *optlib*
 * CUDA
 * D
 * DBusIntrospect *libxml*
@@ -51,17 +52,19 @@ The following parsers have been added:
 * DTS
 * Elm *optlib*
 * Falcon
+* Gdbinit script *optlib*
 * Glade *libxml*
 * Go
 * JavaProperties
 * JSON
 * GNU linker script(LdScript)
-* man page *optlib*
+* Man page *optlib*
+* Markdown *optlib*
 * Maven2 *libxml*
 * M4
 * ObjectiveC
-* passwd
-* puppetManifest *optlib*
+* Passwd *optlib*
+* PuppetManifest *optlib*
 * Perl6
 * Pod *optlib*
 * PropertyList(plist) *libxml*
@@ -71,7 +74,7 @@ The following parsers have been added:
 * QtMoc
 * R
 * RelaxNG *libxml*
-* reStructuredText
+* ReStructuredText
 * Robot
 * RpmSpec
 * Rust
@@ -86,7 +89,6 @@ The following parsers have been added:
 * Yaml *libyaml*
 * YumRepo
 * Zephir
-* ctags option library *optlib*
 * Myrddin
 * RSpec *optlib*
 
@@ -111,6 +113,9 @@ Heavily improved parsers
 
 `F` kind usage
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. IN MAN PAGE
+
 ``F`` is used as a kind letter for file kind in Exuberant-ctags; the
 ``F`` was hard-coded in ctags internal. However, we found some built-in
 parsers including Ruby uses ``F`` for their own purpose. So if you
@@ -275,6 +280,10 @@ On Windows mingw32, you must specify ``WITH_ICONV=yes`` like this::
 
 	C:\dev\ctags>mingw32-make -f mk_mingw.mak WITH_ICONV=yes
 
+``--list-features`` helps you to know whether your ctags executable
+links to libiconv or not. You will find ``iconv`` in the output if it
+links to.
+
 Extra tag entries (``--extras``)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ``--extra`` option in Exuberant-ctags is renamed to ``--extras`` (plural) in
@@ -409,11 +418,11 @@ newly introduced fields.
     $ cat /tmp/foo.h
     #include <stdio.h>
     $ ./ctags -o - --extras=+r --fields=+r /tmp/foo.h
-    stdio.h	/tmp/foo.h	/^#include <stdio.h>/;"	h	role:system
+    stdio.h	/tmp/foo.h	/^#include <stdio.h>/;"	h	roles:system
     $ ./ctags --put-field-prefix -o - --extras=+r --fields=+r /tmp/foo.h
-    stdio.h	/tmp/foo.h	/^#include <stdio.h>/;"	h	UCTAGSrole:system
+    stdio.h	/tmp/foo.h	/^#include <stdio.h>/;"	h	UCTAGSroles:system
 
-In this example, ``role`` is prefixed.
+In this example, ``roles`` is prefixed.
 
 ``--maxdepth`` option
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -669,6 +678,7 @@ See :ref:`--_interactive Mode <interactive-mode>` for more details.
 Defining a kind
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+.. IN MAN PAGE
 
 A new ``--kinddef-<LANG>=letter,name,description`` option reduces the
 typing defining a regex pattern with ``--regex-<LANG>=``, and keeps
@@ -696,7 +706,7 @@ We can say now "kind" is a first class object in Universal-ctags.
 Defining an extra
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-A new ``--extradef-<LANG>=name,description`` option allows you to
+A new ``--_extradef-<LANG>=name,description`` option allows you to
 defining a parser own extra which turning on and off can be
 referred from a regex based parser for ``<LANG>``.
 
@@ -975,22 +985,24 @@ Output with the extra-tag ``r`` enabled:
 
 `#undef X` and two `#include` are newly collected.
 
-A reference tag may have "role" information representing how it is
-referenced.  Universal-ctags prints the role information when the `r`
-field is enabled with ``--fields=+r``. If a tag doesn't have a
-specialized role, `generic` is used as the name of role.
+"roles" is a newly introduced field in Universal-ctags. The field
+named is for recording how a tag is referenced. If a tag is definition
+tag, the roles field has "def" as its value.
+
+Universal-ctags prints the role information when the `r`
+field is enabled with ``--fields=+r``.
 
 .. code-block:: console
 
     $  ./ctags -o - --extras=+r --fields=+r reftag.c
     TYPE	reftag.c	/^#define TYPE /;"	d	file:
-    TYPE	reftag.c	/^#undef TYPE$/;"	d	file:	role:undef
-    TYPE	reftag.c	/^struct TYPE { int x, y; };$/;"	s	file:
-    foo.h	reftag.c	/^#include "foo.h"/;"	h	role:local
-    p	reftag.c	/^TYPE p;$/;"	v	typeref:typename:TYPE
-    stdio.h	reftag.c	/^#include <stdio.h>/;"	h	role:system
-    x	reftag.c	/^struct TYPE { int x, y; };$/;"	m	struct:TYPE	typeref:typename:int	file:
-    y	reftag.c	/^struct TYPE { int x, y; };$/;"	m	struct:TYPE	typeref:typename:int	file:
+    TYPE	reftag.c	/^#undef TYPE$/;"	d	file:	roles:undef
+    TYPE	reftag.c	/^struct TYPE { int x, y; };$/;"	s	file:	roles:def
+    foo.h	reftag.c	/^#include "foo.h"/;"	h	roles:local
+    p	reftag.c	/^TYPE p;$/;"	v	typeref:typename:TYPE	roles:def
+    stdio.h	reftag.c	/^#include <stdio.h>/;"	h	roles:system
+    x	reftag.c	/^struct TYPE { int x, y; };$/;"	m	struct:TYPE	typeref:typename:int	file:	roles:def
+    y	reftag.c	/^struct TYPE { int x, y; };$/;"	m	struct:TYPE	typeref:typename:int	file:	roles:def
 
 The `Reference tag marker` field, ``R``, is a specialized GNU global
 requirement; D is used for the traditional definition tags, and R is
@@ -1042,6 +1054,10 @@ The second column shows the letter/name of the kind.
 The third column shows the name of the role.
 The fourth column shows whether the role is enabled or not.
 The fifth column shows the description of the role.
+
+You can define a role in an optlib parser for capturing reference
+tags. See :ref:`Capturing reference tags <capturing_reftag>` for more
+details.
 
 Currently ctags doesn't provide the way for disabling a
 specified role.

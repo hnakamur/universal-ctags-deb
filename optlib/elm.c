@@ -25,24 +25,42 @@ extern parserDefinition* ElmParser (void)
 		NULL
 	};
 
+	static roleDefinition ElmModuleRoleTable [] = {
+		{ true, "imported", "imported module" },
+	};
 	static kindDefinition ElmKindTable [] = {
-		{ true, 'm', "module", "Module" },
-		{ true, 'n', "namespace", "Renamed Imported Module" },
-		{ true, 'p', "port", "Port" },
-		{ true, 't', "type", "Type Definition" },
-		{ true, 'c', "constructor", "Type Constructor" },
-		{ true, 'a', "alias", "Type Alias" },
-		{ true, 'f', "function", "Functions" },
+		{
+		  true, 'm', "module", "Module",
+		  ATTACH_ROLES(ElmModuleRoleTable),
+		},
+		{
+		  true, 'n', "namespace", "Renamed Imported Module",
+		},
+		{
+		  true, 'p', "port", "Port",
+		},
+		{
+		  true, 't', "type", "Type Definition",
+		},
+		{
+		  true, 'c', "constructor", "Type Constructor",
+		},
+		{
+		  true, 'a', "alias", "Type Alias",
+		},
+		{
+		  true, 'f', "function", "Functions",
+		},
 	};
 	static tagRegexTable ElmTagRegexTable [] = {
 		{"^(port[[:blank:]]+)?module[[:blank:]]+([[:upper:]][[:alnum:]_.]*)", "\\2",
 		"m", "{scope=push}{exclusive}", NULL, false},
 		{"^import[[:blank:]]+[[:alnum:]_.]+[[:blank:]]+as[[:blank:]]+([[:alnum:]]+)", "\\1",
 		"n", "{scope=clear}{exclusive}", NULL, false},
-		{"^import[[:blank:]]+([[:alnum:]_.]+)[[:blank:]]exposing", "",
-		"", "{scope=clear}{exclusive}", NULL, false},
-		{"^import[[:blank:]]+([[:alnum:]_.]+)", "",
-		"", "{scope=clear}{exclusive}", NULL, false},
+		{"^import[[:blank:]]+([[:alnum:]_.]+)[[:blank:]]exposing", "\\1",
+		"m", "{scope=clear}{exclusive}{_role=imported}", NULL, false},
+		{"^import[[:blank:]]+([[:alnum:]_.]+)", "\\1",
+		"m", "{scope=clear}{exclusive}{_role=imported}", NULL, false},
 		{"^port[[:blank:]]+([[:lower:]][[:alnum:]_]*).*", "\\1",
 		"p", "{scope=clear}{exclusive}", NULL, false},
 		{"^type +([[:upper:]][[:alnum:]_]*.*)", "\\1",
@@ -58,7 +76,7 @@ extern parserDefinition* ElmParser (void)
 	};
 
 
-	parserDefinition* const def = parserNew ("elm");
+	parserDefinition* const def = parserNew ("Elm");
 
 	def->enabled       = true;
 	def->extensions    = extensions;

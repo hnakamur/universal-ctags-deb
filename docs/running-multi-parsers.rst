@@ -193,8 +193,8 @@ A subparser can be a base parser for another sub parsers.
 
 At a glance the relationship between two parsers are similar to the
 relationship guest parser and host parser description in
-:ref:`Applying a parser to specified areas of input file
-<host-guest-parsers>`.  However, they are different. Though a guest
+:ref:`Applying a parser to specified areas of input file <host-guest-parsers>`.
+However, they are different. Though a guest
 parser can run stand-alone, a subparser cannot; a subparser needs help
 from base parser to work.
 
@@ -204,7 +204,7 @@ Top down parser choice and bottom up parser choice
 There are two ways to run a subparser: top down or bottom up parser
 choices.
 
-Universal-ctags can chose a subparser `automatically <guessing>`_.
+Universal-ctags can chose a subparser :ref:`automatically <guessing>`.
 Matching file name patterns and extensions are the typical ways for
 choosing. A user can choose a subparser with `--language-force=` option.
 Choosing a parser in these deterministic way is called *top down*.
@@ -260,7 +260,7 @@ API for making a combination of base parser and subparsers
 Outline
 ,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
-You have to work on the both sides: a base parser and subparsers.
+You have to work on both sides: a base parser and subparsers.
 
 A base parser must define a data structure type(`baseMethodTable`) for
 its subparsers by extending `struct subparser` defined in
@@ -332,7 +332,7 @@ A subparser must fill the fields of `subparser`.
 subparser runs exclusively and is chosen in top down way, set
 `SUBPARSER_SUB_RUNS_BASE` flag. If a subparser runs coexisting way and
 is chosen in bottom up way, set `SUBPARSER_BASE_RUNS_SUB`.  Use
-`SUBPARSER_BI_DIRECTION` if The both cases can be considered.
+`SUBPARSER_BI_DIRECTION` if both cases can be considered.
 
 SystemdUnit parser runs as a subparser of iniconf base parser.
 SystemdUnit parser specifies `SUBPARSER_SUB_RUNS_BASE` because
@@ -749,7 +749,7 @@ disabled.
 .. code-block:: console
 
 	$ ./ctags --languages=-Make --fields=+lKr --extras=+r -o - Makefile.am
-	bin	Makefile.am	/^bin_PROGRAMS = ctags$/;"	directory	language:Automake	role:program
+	bin	Makefile.am	/^bin_PROGRAMS = ctags$/;"	directory	language:Automake	roles:program
 	ctags	Makefile.am	/^bin_PROGRAMS = ctags$/;"	program	language:Automake	directory:bin
 
 Autoconf/M4 parser combination
@@ -770,4 +770,3 @@ m4 parser. The most parts of tokens in input files are handled by
 M4. Autoconf parser gives hints for parsing `configure.ac` and
 registers callback functions to
 Autoconf parser.
-

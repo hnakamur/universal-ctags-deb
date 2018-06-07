@@ -243,8 +243,6 @@ static optionDescription LongOptionDescription [] = {
 #else
  {0,"       Uses the specified type of EX command to locate tags [mix]."},
 #endif
- {1,"  --extradef-<LANG>=name,desc"},
- {1,"       Define new extra for <LANG>. \"--extra-<LANG>=+{name}\" enables it."},
  {1,"  --extras=[+|-]flags"},
  {1,"      Include extra tag entries for selected information (flags: \"Ffq.\") [F]."},
  {1,"  --extras-<LANG|*>=[+|-]flags"},
@@ -278,6 +276,8 @@ static optionDescription LongOptionDescription [] = {
  {1,"       o vim syntax specification at the end of input file."},
  {1,"  --help"},
  {1,"       Print this option summary."},
+ {1,"  --help-full"},
+ {1,"       Print this option summary including experimental features."},
  {1,"  --if0=[yes|no]"},
  {1,"       Should code within #if 0 conditional branches be parsed [no]?"},
 #ifdef HAVE_ICONV
@@ -421,6 +421,10 @@ static optionDescription LongOptionDescription [] = {
  {1,"       --list-{aliases,extras,features,fields,kind-full,langdef-flags,params," },
  {1,"       pseudo-tags,regex-flags,roles,subparsers} support this option."},
  {1,"       Specify before --list-* option."},
+ {1, NULL}
+};
+
+static optionDescription ExperimentalLongOptionDescription [] = {
  {1,"  --_anonhash=fname"},
  {1,"       Used in u-ctags test harness"},
  {1,"  --_dump-keywords"},
@@ -430,6 +434,8 @@ static optionDescription LongOptionDescription [] = {
  {1,"  --_echo=msg"},
  {1,"       Echo MSG to standard error. Useful to debug the chain"},
  {1,"       of loading option files."},
+ {1,"  --_extradef-<LANG>=name,desc"},
+ {1,"       Define new extra for <LANG>. \"--extra-<LANG>=+{name}\" enables it."},
  {1,"  --_fatal-warnings"},
  {1,"       Make all warnings fatal."},
  {1,"  --_fielddef-<LANG>=name,description"},
@@ -450,12 +456,16 @@ static optionDescription LongOptionDescription [] = {
  {0,"       Enter file I/O limited interactive mode if sandbox is specified. [default]"},
 #endif
 #endif
+ {1,"  --_list-kinddef-flags"},
+ {1,"       Output list of flags which can be used with --kinddef option."},
  {1,"  --_list-mtable-regex-flags"},
  {1,"       Output list of flags which can be used in a multitable regex parser definition."},
  {1,"  --_mtable-extend-<LANG>=disttable+srctable."},
  {1,"       Copy patterns of a regex table to another regex table."},
  {1,"  --_mtable-regex-<LANG>=table/line_pattern/name_pattern/[flags]"},
  {1,"       Define multitable regular expression for locating tags in specific language."},
+ {1,"  --_roledef-<LANG>=kind_letter.role_name,role_desc"},
+ {1,"       Define new role for kind specified with <kind_letter> in <LANG>."},
  {1,"  --_tabledef-<LANG>=name"},
  {1,"       Define new regex table for <LANG>."},
  {1,"  --_xformat=field_format"},
@@ -505,7 +515,7 @@ static struct Feature {
 	{"unix-path-separator", "can use '/' as file name separator"},
 #endif
 #ifdef HAVE_ICONV
-	{"multibyte", "TO BE WRITTEN"},
+	{"iconv", "can convert input/output encodings"},
 #endif
 #ifdef DEBUG
 	{"debug", "TO BE WRITTEN"},
@@ -1483,15 +1493,33 @@ static void printProgramIdentification (void)
 	printFeatureList ();
 }
 
-static void processHelpOption (
+static void processHelpOptionCommon (
 		const char *const option CTAGS_ATTR_UNUSED,
-		const char *const parameter CTAGS_ATTR_UNUSED)
+		const char *const parameter CTAGS_ATTR_UNUSED,
+		bool includingExperimentalOptions)
 {
 	printProgramIdentification ();
 	putchar ('\n');
 	printInvocationDescription ();
 	putchar ('\n');
 	printOptionDescriptions (LongOptionDescription);
+	if (includingExperimentalOptions)
+		printOptionDescriptions (ExperimentalLongOptionDescription);
+}
+
+static void processHelpOption (
+		const char *const option,
+		const char *const parameter)
+{
+	processHelpOptionCommon (option, parameter, false);
+	exit (0);
+}
+
+static void processHelpFullOption (
+		const char *const option,
+		const char *const parameter)
+{
+	processHelpOptionCommon (option, parameter, true);
 	exit (0);
 }
 
@@ -2071,6 +2099,13 @@ static void processListLangdefFlagsOptions (
 	exit (0);
 }
 
+static void processListKinddefFlagsOptions (
+		const char *const option CTAGS_ATTR_UNUSED,
+		const char *const parameter CTAGS_ATTR_UNUSED)
+{
+	printKinddefFlags (localOption.withListHeader, localOption.machinable, stdout);
+	exit (0);
+}
 
 static void processListRolesOptions (const char *const option CTAGS_ATTR_UNUSED,
 				     const char *const parameter)
@@ -2568,6 +2603,7 @@ static parametricOption ParametricOptions [] = {
 	{ "filter-terminator",      processFilterTerminatorOption,  true,   STAGE_ANY },
 	{ "format",                 processFormatOption,            true,   STAGE_ANY },
 	{ "help",                   processHelpOption,              true,   STAGE_ANY },
+	{ "help-full",              processHelpFullOption,          true,   STAGE_ANY },
 	{ "if0",                    processIf0Option,               false,  STAGE_ANY },
 #ifdef HAVE_ICONV
 	{ "input-encoding",         processInputEncodingOption,     false,  STAGE_ANY },
@@ -2616,6 +2652,7 @@ static parametricOption ParametricOptions [] = {
 #ifdef HAVE_JANSSON
 	{ "_interactive",           processInteractiveOption,       true,   STAGE_ANY },
 #endif
+	{ "_list-kinddef-flags",     processListKinddefFlagsOptions, true,   STAGE_ANY },
 	{ "_list-mtable-regex-flags", processListMultitableRegexFlagsOptions, true, STAGE_ANY },
 	{ "_xformat",               processXformatOption,           false,  STAGE_ANY },
 };
@@ -3058,6 +3095,8 @@ static void processLongOption (
 	else if (strcmp (option, "recurse") == 0)
 		error (WARNING, "%s option not supported on this host", option);
 #endif
+	else if (processRoledefOption (option, parameter))
+		;
 	else
 		error (FATAL, "Unknown option: --%s", option);
 }

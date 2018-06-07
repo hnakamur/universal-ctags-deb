@@ -311,7 +311,7 @@ typedef enum {
 	CR_MACRO_UNDEF,
 } cMacroRole;
 
-static roleDesc CMacroRoles [] = {
+static roleDefinition CMacroRoles [] = {
 	RoleTemplateUndef,
 };
 
@@ -320,7 +320,7 @@ typedef enum {
 	CR_HEADER_LOCAL,
 } cHeaderRole;
 
-static roleDesc CHeaderRoles [] = {
+static roleDefinition CHeaderRoles [] = {
 	RoleTemplateSystem,
 	RoleTemplateLocal,
 };
@@ -412,7 +412,7 @@ typedef enum {
 	JAVAR_PACKAGE_IMPORTED,
 } javaPackageRole;
 
-static roleDesc JavaPackageRoles [] = {
+static roleDefinition JavaPackageRoles [] = {
 	{ true, "imported", "imported package"},
 };
 
@@ -440,7 +440,7 @@ typedef enum {
 	VR_MACRO_UNDEF,
 } veraMacroRole;
 
-static roleDesc VeraMacroRoles [] = {
+static roleDefinition VeraMacroRoles [] = {
 	RoleTemplateUndef,
 };
 
@@ -450,7 +450,7 @@ typedef enum {
 	VR_HEADER_LOCAL,
 } veraHeaderRole;
 
-static roleDesc VeraHeaderRoles [] = {
+static roleDefinition VeraHeaderRoles [] = {
 	RoleTemplateSystem,
 	RoleTemplateLocal,
 };
@@ -503,7 +503,7 @@ static const keywordDesc KeywordTable [] = {
      { "bit",             KEYWORD_BIT,             { 0, 0, 0, 0, 0, 1 } },
      { "body",            KEYWORD_BODY,            { 0, 0, 0, 1, 0, 0 } },
      { "bool",            KEYWORD_BOOL,            { 0, 0, 0, 1, 0, 0 } },
-     { "bool",         KEYWORD_BOOLEAN,         { 0, 0, 0, 0, 1, 0 } },
+     { "boolean",         KEYWORD_BOOLEAN,         { 0, 0, 0, 0, 1, 0 } },
      { "break",           KEYWORD_BREAK,           { 0, 0, 0, 1, 0, 0 } },
      { "byte",            KEYWORD_BYTE,            { 0, 0, 0, 1, 1, 0 } },
      { "case",            KEYWORD_CASE,            { 1, 1, 1, 1, 1, 0 } },

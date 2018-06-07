@@ -34,8 +34,12 @@ extern parserDefinition* ManParser (void)
 	};
 
 	static kindDefinition ManKindTable [] = {
-		{ true, 't', "title", "titles" },
-		{ true, 's', "section", "sections" },
+		{
+		  true, 't', "title", "titles",
+		},
+		{
+		  true, 's', "section", "sections",
+		},
 	};
 	static tagRegexTable ManTagRegexTable [] = {
 		{"^\\.TH[[:space:]]{1,}\"([^\"]{1,})\".*", "\\1",
@@ -49,7 +53,7 @@ extern parserDefinition* ManParser (void)
 	};
 
 
-	parserDefinition* const def = parserNew ("man");
+	parserDefinition* const def = parserNew ("Man");
 
 	def->enabled       = true;
 	def->extensions    = extensions;
