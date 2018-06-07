@@ -20,6 +20,10 @@ override_dh_auto_configure:
 	dh_auto_configure -- \
 		--program-transform-name='s/ctags/ctags-universal/'
 
+override_dh_auto_test:
+	SHOW_DIFF_OUTPUT=--show-diff-output \
+	dh_auto_test
+
 override_dh_install:
 	mv man/ctags.1 man/ctags-universal.1
 	dh_auto_install
