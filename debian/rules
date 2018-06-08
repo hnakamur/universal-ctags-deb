@@ -14,9 +14,6 @@ override_dh_autoreconf:
 	dh_autoreconf
 
 override_dh_auto_configure:
-	# We need to pass ASPELL_CFLAGS and ASPELL_LIBS here
-	# because the libaspell-dev package does not include pkg-config file.
-	ASPELL_CFLAGS=-I/usr/include ASPELL_LIBS=-laspell \
 	dh_auto_configure -- \
 		--program-transform-name='s/ctags/ctags-universal/'
 
