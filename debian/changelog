@@ -1,3 +1,13 @@
+universal-ctags (0+SNAPSHOT20180608-1ubuntu1ppa2~ubuntu18.04.1) bionic; urgency=medium
+
+  [ Hiroaki Nakamura ]
+  * Remove patch for skipping Tmain parser-own-fields stdout comparison test
+
+  [ Masatake YAMATO ]
+  * [PATCH] Tmain: initialize "V" variable explicitly
+
+ -- Hiroaki Nakamura <hnakamur@gmail.com>  Fri, 08 Jun 2018 21:33:49 +0900
+
 universal-ctags (0+SNAPSHOT20180608-1ubuntu1ppa1~ubuntu18.04.1) bionic; urgency=medium
 
   * New upstream version 0+SNAPSHOT20180608
