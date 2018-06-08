@@ -1,3 +1,10 @@
+universal-ctags (0+SNAPSHOT20180608-1ubuntu1ppa1~ubuntu18.04.1) bionic; urgency=medium
+
+  * New upstream version 0+SNAPSHOT20180608
+  * Stop linking to libaspell
+
+ -- Hiroaki Nakamura <hnakamur@gmail.com>  Fri, 08 Jun 2018 16:33:08 +0900
+
 universal-ctags (0+SNAPSHOT20180606-1ubuntu1ppa3~ubuntu18.04.1) bionic; urgency=medium
 
   * Skip Tmain parser-own-fields stdout comparison test
