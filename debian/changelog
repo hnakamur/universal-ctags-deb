@@ -1,3 +1,10 @@
+universal-ctags (0+git20180712-1ppa1~ubuntu18.04.1) bionic; urgency=medium
+
+  * New upstream version 0+git20180712
+  * Remove patch which is now included in upstream
+
+ -- Hiroaki Nakamura <hnakamur@gmail.com>  Sun, 15 Jul 2018 07:08:39 +0900
+
 universal-ctags (0+SNAPSHOT20180608-1ubuntu1ppa2~ubuntu18.04.1) bionic; urgency=medium
 
   [ Hiroaki Nakamura ]
