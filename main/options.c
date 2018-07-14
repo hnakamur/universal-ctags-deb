@@ -35,6 +35,7 @@
 #include "error.h"
 #include "interactive.h"
 #include "writer.h"
+#include "trace.h"
 
 #ifdef HAVE_JANSSON
 #include <jansson.h>
@@ -247,12 +248,12 @@ static optionDescription LongOptionDescription [] = {
  {1,"      Include extra tag entries for selected information (flags: \"Ffq.\") [F]."},
  {1,"  --extras-<LANG|*>=[+|-]flags"},
  {1,"      Include <LANG> own extra tag entries for selected information"},
- {1,"      (flags: --list-extras=<LANG>)."},
+ {1,"      (flags: see the output of --list-extras=<LANG> option)."},
  {1,"  --fields=[+|-]flags"},
  {1,"      Include selected extension fields (flags: \"afmikKlnsStzZ\") [fks]."},
  {1,"  --fields-<LANG|*>=[+|-]flags"},
  {1,"      Include selected <LANG> own extension fields"},
- {1,"      (flags: --list-fields=<LANG>)."},
+ {1,"      (flags: see the output of --list-fields=<LANG> option)."},
  {1,"  --file-scope=[yes|no]"},
  {1,"       Should tags scoped only for a single file (e.g. \"static\" tags)"},
  {1,"       be included in the output [yes]?"},
@@ -321,8 +322,6 @@ static optionDescription LongOptionDescription [] = {
  {1,"       List the details of all tag kinds for specified language or all"},
  {1,"       For each line, associated language name is printed when \"all\" is"},
  {1,"       specified as language."},
- {1,"  --list-langdef-flags"},
- {1,"       Output list of flags which can be used with --langdef option."},
  {1,"  --list-languages"},
  {1,"       Output list of supported languages."},
  {1,"  --list-map-extensions=[language|all]"},
@@ -458,6 +457,8 @@ static optionDescription ExperimentalLongOptionDescription [] = {
 #endif
  {1,"  --_list-kinddef-flags"},
  {1,"       Output list of flags which can be used with --kinddef option."},
+ {1,"  --_list-langdef-flags"},
+ {1,"       Output list of flags which can be used with --langdef option."},
  {1,"  --_list-mtable-regex-flags"},
  {1,"       Output list of flags which can be used in a multitable regex parser definition."},
  {1,"  --_mtable-extend-<LANG>=disttable+srctable."},
@@ -468,6 +469,10 @@ static optionDescription ExperimentalLongOptionDescription [] = {
  {1,"       Define new role for kind specified with <kind_letter> in <LANG>."},
  {1,"  --_tabledef-<LANG>=name"},
  {1,"       Define new regex table for <LANG>."},
+#ifdef DO_TRACING
+ {1,"  --_trace=list"},
+ {1,"       Trace parsers for the languages."},
+#endif
  {1,"  --_xformat=field_format"},
  {1,"       Specify custom format for tabular cross reference (-x)."},
  {1,"       Fields can be specified with letter listed in --list-fields."},
@@ -2503,6 +2508,45 @@ static void processVersionOption (
 	exit (0);
 }
 
+#ifdef DO_TRACING
+static void processTraceOption(const char *const option CTAGS_ATTR_UNUSED,
+							   const char *const parameter)
+{
+	const char *langs = eStrdup (parameter);
+	const char *lang = langs;
+
+	traceMain();
+
+	while (lang != NULL)
+	{
+		if (*lang == '\0')
+			break;
+		if (*lang == ',')
+		{
+			lang++;
+			continue;
+		}
+
+		char *const end = strchr (lang, ',');
+
+		if (end != NULL)
+			*end = '\0';
+
+		const langType language = getNamedLanguage (lang, 0);
+		if (language == LANG_IGNORE)
+			error (WARNING, "Unknown language \"%s\" in \"%s\" option", lang, option);
+		else
+		{
+			traceLanguage (language);
+			verbose ("Enable tracing language: %s\n", lang);
+
+		}
+		lang = (end != NULL ? end + 1 : NULL);
+	}
+	eFree ((char *)langs);
+}
+#endif
+
 static void processXformatOption (const char *const option CTAGS_ATTR_UNUSED,
 				  const char *const parameter)
 {
@@ -2622,7 +2666,6 @@ static parametricOption ParametricOptions [] = {
 	{ "list-fields",            processListFieldsOption,        true,   STAGE_ANY },
 	{ "list-kinds",             processListKindsOption,         true,   STAGE_ANY },
 	{ "list-kinds-full",        processListKindsOption,         true,   STAGE_ANY },
-	{ "list-langdef-flags",     processListLangdefFlagsOptions, true,   STAGE_ANY },
 	{ "list-languages",         processListLanguagesOption,     true,   STAGE_ANY },
 	{ "list-maps",              processListMapsOption,          true,   STAGE_ANY },
 	{ "list-map-extensions",    processListMapExtensionsOption, true,   STAGE_ANY },
@@ -2653,7 +2696,11 @@ static parametricOption ParametricOptions [] = {
 	{ "_interactive",           processInteractiveOption,       true,   STAGE_ANY },
 #endif
 	{ "_list-kinddef-flags",     processListKinddefFlagsOptions, true,   STAGE_ANY },
+	{ "_list-langdef-flags",     processListLangdefFlagsOptions, true,   STAGE_ANY },
 	{ "_list-mtable-regex-flags", processListMultitableRegexFlagsOptions, true, STAGE_ANY },
+#ifdef DO_TRACING
+	{ "_trace",                 processTraceOption,             false,  STAGE_ANY },
+#endif
 	{ "_xformat",               processXformatOption,           false,  STAGE_ANY },
 };
 
