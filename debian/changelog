@@ -1,8 +1,13 @@
-universal-ctags (0+git20190201-1ppa1~ubuntu18.04.1) bionic; urgency=medium
+universal-ctags (0+git20190201-1ppa2~ubuntu16.04.1) xenial; urgency=medium
 
   * New upstream version 0+git20190201
+  * Retarget to Ubuntu 16.04 LTS
+  * Change minimum debhelper version from 11 to 9
+  * Change debian/compat from 11 to 9
+  * Add dh-autoreconf to Build-Depends
+  * Change debian-branch to ubuntu/xenial
 
- -- Hiroaki Nakamura <hnakamur@gmail.com>  Sat, 02 Feb 2019 21:54:11 +0900
+ -- Hiroaki Nakamura <hnakamur@gmail.com>  Sat, 02 Feb 2019 23:31:01 +0900
 
 universal-ctags (0+git20180712-1ppa1~ubuntu18.04.1) bionic; urgency=medium
 
