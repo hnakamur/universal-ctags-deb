@@ -63,20 +63,22 @@
 
 #include "ctags.h"
 #include "debug.h"
-#include "entry.h"
-#include "error.h"
-#include "field.h"
-#include "keyword.h"
-#include "main.h"
-#include "options.h"
-#include "read.h"
-#include "routines.h"
+#include "entry_p.h"
+#include "error_p.h"
+#include "field_p.h"
+#include "keyword_p.h"
+#include "main_p.h"
+#include "options_p.h"
+#include "parse_p.h"
+#include "read_p.h"
+#include "routines_p.h"
 #include "trace.h"
-#include "trashbox.h"
-#include "writer.h"
+#include "trashbox_p.h"
+#include "writer_p.h"
+#include "xtag_p.h"
 
 #ifdef HAVE_JANSSON
-#include "interactive.h"
+#include "interactive_p.h"
 #include <jansson.h>
 #include <errno.h>
 #endif
@@ -673,7 +675,7 @@ extern int main (int argc CTAGS_ATTR_UNUSED, char **argv)
 	runMainLoop (args);
 
 
-	BEGIN_VERBOSE(vfp);
+	BEGIN_VERBOSE_IF(Option.mtablePrintTotals, vfp);
 	{
 		for (unsigned int i = 0; i < countParsers(); i++)
 			printLanguageMultitableStatistics (i, vfp);

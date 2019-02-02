@@ -15,6 +15,7 @@
 #include "entry.h"
 #include "cpreprocessor.h"
 #include "keyword.h"
+#include "parse.h"
 #include "read.h"
 #include "xtag.h"
 
@@ -223,7 +224,7 @@ static int makeLdScriptTagMaybe (tagEntryInfo *const e, tokenInfo *const token,
 }
 
 #define isIdentifierChar(c)										\
-	(isalnum (c) || (c) == '_' || (c) == '.' || (c) == '-' || (c) >= 0x80)
+	(cppIsalnum (c) || (c) == '_' || (c) == '.' || (c) == '-' || (c) >= 0x80)
 
 static int readPrefixedToken (tokenInfo *const token, int type)
 {
@@ -259,7 +260,8 @@ static void readToken (tokenInfo *const token, void *data CTAGS_ATTR_UNUSED)
 
 	do {
 		c = cppGetc();
-	} while (c == ' ' || c== '\t' || c == '\f' || c == '\r' || c == '\n');
+	} while (c == ' ' || c== '\t' || c == '\f' || c == '\r' || c == '\n'
+			 || c == STRING_SYMBOL || c == CHAR_SYMBOL);
 
 	token->lineNumber   = getInputLineNumber ();
 	token->filePosition = getInputFilePosition ();
@@ -410,8 +412,16 @@ static void readToken (tokenInfo *const token, void *data CTAGS_ATTR_UNUSED)
 			token->type = c;
 		break;
 	default:
-		if (isdigit (c))
+		if (cppIsdigit (c))
 		{
+			/* Using cppIsdigit here is redundant.
+			 *
+			 * `c' never takes STRING_SYMBOL or CHAR_SYMBOL as
+			 * its value here.
+			 * However, the practice using cppIs... macros for the value
+			 * returned from cppGetc() may avoid unexpected programming
+			 * mistakes I took repeatedly.
+			 */
 			token->type = TOKEN_NUMBER;
 			tokenPutc(token, c);
 			while ((c = cppGetc()))

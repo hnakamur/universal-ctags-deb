@@ -1,8 +1,9 @@
 # -*- makefile -*-
 TRANSLATOR_INPUT = \
-	optlib/RSpec.ctags		\
+	optlib/RSpec.ctags			\
+	optlib/cmake.ctags			\
 	optlib/ctags-optlib.ctags		\
-	optlib/elm.ctags		\
+	optlib/elm.ctags			\
 	optlib/gdbinit.ctags			\
 	optlib/man.ctags			\
 	optlib/markdown.ctags			\
@@ -10,5 +11,6 @@ TRANSLATOR_INPUT = \
 	optlib/pod.ctags			\
 	optlib/qemuhx.ctags			\
 	optlib/puppetManifest.ctags		\
+	optlib/systemtap.ctags			\
 	\
 	$(NULL)

@@ -107,7 +107,7 @@ static void stringCat (
 	if (string->length + length + 1 > string->size)
 		vStringResize (string, string->length + length + 1);
 
-	strncpy (string->buffer + string->length, s, length);
+	memcpy (string->buffer + string->length, s, length);
 	string->length += length;
 	vStringPut (string, '\0');
 }
@@ -277,6 +277,14 @@ extern char    *vStringDeleteUnwrap       (vString *const string)
 	return buffer;
 }
 
+extern char    *vStringStrdup (const vString *const string)
+{
+	char *str = xMalloc (vStringLength(string) + 1, char);
+	str[vStringLength(string)] = '\0';
+	memcpy (str, string->buffer, vStringLength(string));
+	return str;
+}
+
 static char valueToXDigit (int v)
 {
 	Assert (v >= 0 && v <= 0xF);
@@ -379,7 +387,7 @@ extern vString *vStringNewOrClearWithAutoRelease (vString *const string)
 
 extern void vStringTranslate(vString *const string, char fromC, char toC)
 {
-	for (int i = 0; i < vStringLength(string); i++)
+	for (unsigned int i = 0; i < vStringLength(string); i++)
 	{
 		if (string->buffer[i] == fromC)
 			string->buffer[i] = toC;

@@ -1,5 +1,8 @@
 # -*- makefile -*-
-.PHONY: check units fuzz noise tmain tinst clean-units clean-tmain clean-gcov run-gcov codecheck cppcheck dicts cspell
+.PHONY: check units fuzz noise tmain tinst clean-units clean-tmain clean-gcov run-gcov codecheck cppcheck dicts cspell validate-input
+
+EXTRA_DIST += misc/units
+DIST_SUBDIRS = Tmain Units
 
 check: tmain units
 
@@ -119,6 +122,21 @@ clean-units:
 	$(SILENT) builddir=$$(pwd); \
 		$(SHELL) $(srcdir)/misc/units clean $${builddir}/Units
 
+#
+# VALIDATE-INPUT Target
+#
+validate-input:
+	$(V_RUN) \
+	if test -n "$${ZSH_VERSION+set}"; then set -o SH_WORD_SPLIT; fi; \
+	if test x$(VG) = x1; then		\
+		VALGRIND=--with-valgrind;	\
+	fi;					\
+	if test -n "$(VALIDATORS)"; then	\
+		VALIDATORS="--validators=$(VALIDATORS)"; \
+	fi; \
+	c="$(srcdir)/misc/units validate-input $${VALIDATORS}"; \
+	TRAVIS=$(TRAVIS) APPVEYOR=$(APPVEYOR) CIRCLECI=$(CIRCLECI)\
+		$(SHELL) $${c} $(srcdir)/Units $(srcdir)/misc/validators
 #
 # Test main part, not parsers
 #

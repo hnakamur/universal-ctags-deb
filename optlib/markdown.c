@@ -4,9 +4,11 @@
 #include "general.h"
 #include "parse.h"
 #include "routines.h"
+#include "field.h"
+#include "xtag.h"
 
 
-static void initializeMarkdownParser (const langType language CTAGS_ATTR_UNUSED)
+static void initializeMarkdownParser (const langType language)
 {
 
 	addLanguageRegexTable (language, "main");

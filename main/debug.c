@@ -19,9 +19,11 @@
 #include <string.h>
 
 #include "debug.h"
-#include "entry_private.h"
+#include "entry_p.h"
 #include "options.h"
+#include "parse_p.h"
 #include "read.h"
+#include "read_p.h"
 
 /*
 *   FUNCTION DEFINITIONS

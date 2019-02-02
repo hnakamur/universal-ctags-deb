@@ -38,6 +38,7 @@ LANGUAGES=
 RUN_SHRINK=
 QUIET=
 SHOW_DIFF_OUTPUT=
+VALIDATORS=
 
 #
 # Internal variables and constants
@@ -54,6 +55,12 @@ readonly _LINE_SPLITTER=$(if type dos2unix > /dev/null 2>&1; then echo "dos2unix
 readonly _STDERR_OUTPUT_NAME="STDERR.tmp"
 readonly _DIFF_OUTPUT_NAME="DIFF.tmp"
 readonly _NOISE_REPORT_MAX_COLUMN=50
+readonly _VALIDATION_EXIT_INVALID=2
+readonly _NOOP_VALIDATOR="NONE"
+readonly _KNOWN_INVALIDATION_VALIDATOR="KNOWN-INVALIDATION"
+
+_RUNNABLE_VALIDATORS=
+_UNAVAILABLE_VALIDATORS=
 
 #
 # Results
@@ -68,6 +75,11 @@ L_SKIPPED_BY_ILOOP=
 L_KNOWN_BUGS=
 L_FAILED_BY_TIMEED_OUT=
 L_BROKEN_ARGS_CTAGS=
+
+V_VALID=0
+V_INVALID=0
+V_SKIP_VALIDATOR_UNAVAILABLE=0
+V_SKIP_KNOWN_INVALIDATION=0
 
 #
 # TODO
@@ -94,6 +106,8 @@ Usage:
 	$(help_tmain)
 
 	$(help_chop)
+
+	$(help_validate_input)
 
 	$(help_clean_tmain)
 EOF
@@ -265,6 +279,13 @@ decorate ()
     local decorator="$1"
     local msg="$2"
 
+    case "$decorator" in
+	red)    decorator=31 ;;
+	green)  decorator=32 ;;
+	yellow) decorator=33 ;;
+	*) ERROR 1 "INTERNAL ERROR: wrong run_result function: $f"
+    esac
+
     if [ "${COLORIZED_OUTPUT}" = 'yes' ]; then
 	printf '%b\n' "\033[${decorator}m${msg}\033[39m"
     else
@@ -294,33 +315,33 @@ run_result ()
 run_result_skip ()
 {
     if [ -n "$1" ]; then
-	printf '%b\n' $(decorate 33 "skipped")" ($1)"
+	printf '%b\n' $(decorate yellow "skipped")" ($1)"
     else
-	printf '%b\n' $(decorate 33 "skipped")
+	printf '%b\n' $(decorate yellow "skipped")
     fi
 }
 
 run_result_error ()
 {
     if [ ! -n "$1" ]; then
-	printf '%b\n' $(decorate 31 "failed")
+	printf '%b\n' $(decorate red "failed")
     else
-	printf '%b\n' $(decorate 31 "failed")" ($1)"
+	printf '%b\n' $(decorate red "failed")" ($1)"
     fi
 }
 
 run_result_ok ()
 {
     if [ ! -n "$1" ]; then
-	printf '%b\n' $(decorate 32 "passed")
+	printf '%b\n' $(decorate green "passed")
     else
-	printf '%b\n' $(decorate 32 "passed")" ($1)"
+	printf '%b\n' $(decorate green "passed")" ($1)"
     fi
 }
 
 run_result_known_error ()
 {
-    printf '%b\n' $(decorate 33 "failed")" (KNOWN bug)"
+    printf '%b\n' $(decorate yellow "failed")" (KNOWN bug)"
 }
 
 run_shrink ()
@@ -752,8 +773,8 @@ run_dir ()
 	    continue
 	fi
 
-	extra_inputs=$(for extra_tmp in $(dirname $input)/input-[0-9].* \
-					$(dirname $input)/input-[0-9]-*.* ; do
+	extra_inputs=$(for extra_tmp in $(dirname $input)/input[-_][0-9].* \
+					$(dirname $input)/input[-_][0-9][-_]*.* ; do
 	    if unwanted_file "$extra_tmp"; then
 		continue
 	    fi
@@ -1840,6 +1861,9 @@ tmain_compare_result()
 	    echo
 	fi
     done
+    if [ -f ${build_topdir}/*/gdb-backtrace.txt ]; then
+	cat ${build_topdir}/*/gdb-backtrace.txt
+    fi
 }
 
 tmain_compare()
@@ -1875,6 +1899,28 @@ failed_git_marker ()
 	    echo '<G>'
 	fi
     fi
+}
+
+is_crashed ()
+{
+    local f=$1
+
+    grep -q -i "core dump" "$f"
+}
+
+print_backtraces()
+{
+    local ctags_exe=$1
+    shift 1
+
+    local coref
+    for coref in "$@"; do
+	if [ -f "${coref}" ]; then
+	    gdb "${ctags_exe}" -c "${coref}" -ex where -batch
+	else
+	    echo "no such file: ${coref}"
+	fi
+    done
 }
 
 CODE_FOR_IGNORING_THIS_TMAIN_TEST=77
@@ -1954,7 +2000,6 @@ tmain_run ()
 	if [ -f ${build_subdir}/tags ]; then
 	    mv ${build_subdir}/tags ${build_subdir}/tags-actual.txt
 	fi
-
 	for aspect in stdout stderr exit tags; do
 	    if [ -f ${subdir}/${aspect}-expected.txt ]; then
 		engine=compare
@@ -1964,6 +2009,13 @@ tmain_run ()
 		    failed="${failed} ${test_name}/${aspect}-${engine}"
 		    failed="${failed}$(failed_git_marker ${subdir}/${aspect}-expected.txt)"
 		    status_=1
+		    if [ ${aspect} = stderr ] &&
+			   is_crashed ${build_subdir}/${aspect}-actual.txt &&
+			   type "gdb" > /dev/null 2>&1; then
+			print_backtraces "${basedir}/${CTAGS}" \
+					 ${build_subdir}/core* \
+					 > ${build_subdir}/gdb-backtrace.txt
+		    fi
 		fi
 	    elif [ -f ${build_subdir}/${aspect}-actual.txt ]; then
 		     rm ${build_subdir}/${aspect}-actual.txt
@@ -2132,6 +2184,7 @@ action_clean_tmain()
     for object in stdout stderr exit tags; do
 	for type in actual diff; do
 	    rm -f $(find "$tmain_dir" -name ${object}-${type}.txt)
+	    rm -f $(find "$tmain_dir" -name gdb-backtrace.txt)
 	done
     done
     return 0
@@ -2139,7 +2192,7 @@ action_clean_tmain()
 
 help_clean_tmain ()
 {
-cat <<EOF
+    cat <<EOF
 $0 clean_tmain TMAIN-DIR
 
 	   Clean all files created during tmain testing
@@ -2149,7 +2202,7 @@ EOF
 
 help_chop ()
 {
-cat <<EOF
+    cat <<EOF
 $0 chop|slap [OPTIONS] UNITS-DIR
 
 	   OPTIONS:
@@ -2332,17 +2385,502 @@ chop_lang_file_chopspec()
     return $r
 }
 
+help_validate_input ()
+{
+    cat <<EOF
+$0 validate-input [OPTIONS] UNITS-DIR VALIDATORS-DIR
+
+	Validate the input files (only for the test cases specifying validators.)
+
+	OPTIONS:
+		--validators=validator[,...]: Validate test cases specifying
+					    given validators.
+		--colorized-output: yes|no: print the result in color.
+EOF
+}
+
+has_validator_acceptable_name ()
+{
+    local validator=$1
+    if [ -z "${validator}" ]; then
+	return 1
+    fi
+
+    echo "${validator}" | grep -q "^[-a-zA-Z+#0-9]\+$"
+}
+
+is_validator_runnable ()
+{
+    local v=$1
+    local d=$2
+    shift 2
+
+    "$d/"validator-"$v" is_runnable
+}
+
+update_validator_list ()
+{
+    local type=$1
+    local v=$2
+
+    case $type in
+	runnable)
+	    if ! member_p "$v" ${_RUNNABLE_VALIDATORS}; then
+		_RUNNABLE_VALIDATORS="${_RUNNABLE_VALIDATORS} $v"
+	    fi
+	    ;;
+	unavailable)
+	    if ! member_p "$v" ${_UNAVAILABLE_VALIDATORS}; then
+		_UNAVAILABLE_VALIDATORS="${_UNAVAILABLE_VALIDATORS} $v"
+	    fi
+	    ;;
+	*)
+	    ERROR 1 "INTERNAL ERROR: wrong validator list type: ${type}"
+	    ;;
+    esac
+}
+
+#
+# Whether a validator can be run or not.
+#
+# This runs "is_runnable" subcommand of the validator.
+#
+validate_validator ()
+{
+    local v=$1
+    local validators_dir=$2
+    local make_error=$3
+
+    if member_p "$v" ${_RUNNABLE_VALIDATORS}; then
+	return 0
+    elif member_p "$v" ${_UNAVAILABLE_VALIDATORS}; then
+	return 1
+    fi
+
+    if ! has_validator_acceptable_name "$v"; then
+	if [ "${make_error}" = "error" ]; then
+	    ERROR 1 "Unacceptable validator name: $v"
+	else
+	    update_validator_list unavailable "$v"
+	    return 1
+	fi
+    elif ! [ -f "${validators_dir}/validator-$v" ]; then
+	if [ "${make_error}" = "error" ]; then
+	    ERROR 1 "No such validator: $v (${validators_dir}/validator-$v)"
+	else
+	    update_validator_list unavailable "$v"
+	    return 1
+	fi
+    elif ! [ -x "${validators_dir}/validator-$v" ]; then
+	if [ "$make_error" = "error" ]; then
+	    ERROR 1 "Not exectuable: $v (${validators_dir}/validator-$v)"
+	else
+	    update_validator_list unavailable "$v"
+	    return 1
+	fi
+    elif ! is_validator_runnable "$v" "${validators_dir}"; then
+	if [ "${make_error}" = "error" ]; then
+	    ERROR 1 "$v (${validators_dir}/validator-$v) is not ready to run"
+	else
+	    update_validator_list unavailable "$v"
+	    return 1
+	fi
+    fi
+
+    update_validator_list runnable "$v"
+    return 0
+}
+
+#
+# Choose a validator suitable for the current context.
+#
+# Return value
+# 0: The caller should run echo'ed validator.
+#
+# 1: The caller should skip the input. It means
+#    - the suitable validator is not listed in VALIDATORS, or
+#    - no expected.tags and no validator file exist.
+#    The caller doesn't have to update any validation counters.
+# 2: The caller should skip the input and update the unavailable
+#    counter.
+#
+resolve_validator ()
+{
+    local validator_file=$1
+    local default_validator=$2
+    local has_expected_tags=$3
+    local validators_dir=$4
+
+    shift 4
+
+    local candidate_validator
+    local local_validator
+
+    if [ -r "$validator_file" ]; then
+	local_validator=$(cat "${validator_file}" | grep -v '#')
+	if [ -z "${local_validator}" ]; then
+	    ERROR 1 "Empty validator specfile: ${local_validator}"
+	else
+	    candidate_validator=${local_validator}
+	fi
+    elif [ "$has_expected_tags" = no ]; then
+	return 1
+    else
+	candidate_validator=${default_validator}
+    fi
+
+    if [ -z "${candidate_validator}" ]; then
+	return 2
+    elif [ -z "${VALIDATORS}" ] || member_p "${candidate_validator}" ${VALIDATORS}; then
+	echo "${candidate_validator}"
+	if validate_validator "${candidate_validator}" "${validators_dir}" noerror; then
+	    return 0
+	else
+	    return 2
+	fi
+    else
+	return 1
+    fi
+}
+
+#
+# Report the result of validation for INPUT with decoration
+# The validation result counters are updated here.
+#
+validate_report_one ()
+{
+    local input=$1
+    local validator=$2
+    local status=$3
+    shift 3
+
+    if [ "${validator}" = "${_NOOP_VALIDATOR}" ]; then
+	return
+    fi
+
+    local i=$(basename $input)
+    local d=$(basename $(dirname $input))
+
+    printf '%-65s' "$d/$i with ${validator}"
+    case "${status}" in
+	valid)
+	    if [ "${validator}" = "${_KNOWN_INVALIDATION_VALIDATOR}" ]; then
+		printf '%b\n' $(decorate yellow "known-invalidation")
+		V_SKIP_KNOWN_INVALIDATION=$(( V_SKIP_KNOWN_INVALIDATION + 1 ))
+	    else
+		printf '%b\n' $(decorate green "valid")
+		V_VALID=$(( V_VALID + 1))
+	    fi
+	    ;;
+	invalid)
+	    printf '%b\n' $(decorate red "invalid")
+	    V_INVALID=$(( V_INVALID + 1))
+	    ;;
+	unavailable)
+	    printf '%b\n' $(decorate yellow "unavailable")
+	    V_SKIP_VALIDATOR_UNAVAILABLE=$(( V_SKIP_VALIDATOR_UNAVAILABLE + 1))
+	    ;;
+	*)
+	    ERROR 1 "INTERNAL ERROR: wrong validation status: ${status}"
+	    ;;
+    esac
+}
+
+#
+# Run a validator for the given input
+#
+# This runs "validate" subcommand of the validator.
+#
+validate_file ()
+{
+    local input=$1
+    local validator=$2
+    local validators_dir=$3
+    shift 3
+
+    ${validators_dir}/validator-${validator} validate $input
+    return $?
+}
+
+#
+# Validate input files under *.[dbtiv].
+#
+validate_dir ()
+{
+    local base_dir=$1
+    local default_validator=$2
+    local validators_dir=$3
+    shift 3
+
+    local f
+    local t
+
+    local v0 s0 inputs0
+    local v s inputs
+
+    #
+    # No expected.tags* implies the input is invalid.
+    # We don't have to run any validator as far as no
+    # ./validator explicitly is given.
+    #
+    local has_expected_tags=no
+    for f in "${base_dir}"/expected.tags*; do
+	[ -r "$f" ] || continue
+	unwanted_file "$f" && continue
+	has_expected_tags=yes
+	break
+    done
+
+    # A validator specified in ./validator is used for validating ./input.foo.
+    # It will be used for validating ./input[-_]*.foo, too if ./validator[-_]*.
+    # doesn't exit.
+    inputs0=$(for f in "${base_dir}"/input.*; do
+		  [ -r "$f" ] || continue
+		  unwanted_file "$f" && continue
+		  echo $f
+	      done | sort)
+    v0=$(resolve_validator "${base_dir}"/validator \
+			  "${default_validator}" \
+			  "${has_expected_tags}" \
+			  "${validators_dir}")
+    s0=$?
+
+    case "$s0" in
+	0)
+	    update_validator_list runnable "$v0"
+	    for f in $inputs0; do
+		if validate_file "$f" "$v0" "${validators_dir}"; then
+		    validate_report_one "$f" "$v0" valid
+		else
+		    validate_report_one "$f" "$v0" invalid
+		fi
+	    done
+	    default_validator=$v0
+	    ;;
+	1)
+	    # no action neeeded
+	    ;;
+	2)
+	    update_validator_list unavailable "$v0"
+	    for f in $inputs0; do
+		validate_report_one "$f" "$v0" unavailable
+	    done
+	    default_validator=
+	    ;;
+    esac
+
+    inputs=$(for f in "${base_dir}"/input[-_][0-9].* \
+		      "${base_dir}"/input[-_][0-9][-_]*.*; do
+		 [ -r "$f" ] || continue
+		 unwanted_file "$f" && continue
+		 echo $f
+	     done | sort)
+
+    for f in $inputs; do
+	t=${f#input}; t=${t%.*}
+	v=$(resolve_validator "${base_dir}"/validator"$t" \
+			     "$default_validator" \
+			     "$has_expected_tags" \
+			     "$validators_dir")
+	s=$?
+	case "$s" in
+	    0)
+		update_validator_list runnable "$v0"
+		if validate_file "$f" "$v" "${validators_dir}"; then
+		    validate_report_one "$f" "$v" valid
+		else
+		    validate_report_one "$f" "$v" invalid
+		fi
+		;;
+	    1)
+		# no action neeeded
+		;;
+	    2)
+		update_validator_list unavailable "$v0"
+		validate_report_one "$f" "$v" unavailable
+		;;
+	esac
+    done
+}
+
+#
+# Validate input files under *.r.
+#
+validate_category ()
+{
+    local category=$1
+    local base_dir=$2
+    local validators_dir=$3
+    shift 3
+
+    local d
+    local default_validator=${_NOOP_VALIDATOR}
+
+    if [ -r "${base_dir}/validator" ]; then
+	default_validator=$(cat "${base_dir}/validator" | grep -v '#')
+	if [ -z "${default_validator}" ]; then
+	    ERROR 1 "Empty validator specfile (in ${base_dir}/validator)"
+	fi
+
+	validate_validator "${default_validator}" "${validators_dir}" noerror
+    fi
+
+    for d in "${base_dir}"/*.[dbtiv]; do
+	[ -d "$d" ] || continue
+	validate_dir "$d" "${default_validator}" "${validators_dir}"
+    done
+}
+
+#
+# Report the summary of validations
+#
+validate_summary ()
+{
+    echo
+    echo "Summary"
+    line
+
+    printf '  %-40s' "#valid:"
+    printf '%b\n' $(decorate green "${V_VALID}")
+
+    printf '  %-40s' "#invalid:"
+    if [ "${V_INVALID}" = 0 ]; then
+	echo "${V_INVALID}"
+    else
+	printf '%b\n' $(decorate red "${V_INVALID}")
+    fi
+
+    printf '  %-40s' "#skipped (known invalidation)"
+    if [ "${V_SKIP_KNOWN_INVALIDATION}" = 0 ]; then
+	echo 0
+    else
+	printf '%b\n' $(decorate yellow "${V_SKIP_KNOWN_INVALIDATION}")
+    fi
+
+    printf '  %-40s' "#skipped (validator unavailable)"
+    if [ "${V_SKIP_VALIDATOR_UNAVAILABLE}" = 0 ]; then
+	echo 0
+    else
+	local u
+	printf '%b\n' $(decorate yellow "${V_SKIP_VALIDATOR_UNAVAILABLE}")
+
+	echo
+	echo "Unavailable validators"
+	line
+	for u in ${_UNAVAILABLE_VALIDATORS}; do
+	    echo "	$u"
+	done
+    fi
+
+    if [ "${V_INVALID}" = 0 ]; then
+	return 0
+    else
+	return "${_VALIDATION_EXIT_INVALID}"
+    fi
+}
+
+action_validate_input ()
+{
+    local action=$1
+    shift
+
+    local units_dir
+    local validators_dir
+    local validators
+
+    local v
+    local d
+
+    while [ $# -gt 0 ]; do
+	case $1 in
+	    --validators)
+		shift
+		validators=$1
+		shift
+		;;
+	    --validators=*)
+		validators=${1#--validators=}
+		shift
+		;;
+	    --colorized-output)
+		shift
+		COLORIZED_OUTPUT=$1
+		shift
+		;;
+	    --colorized-output=*)
+		COLORIZED_OUTPUT=${1#--colorized-output=}
+		shift
+		;;
+	    -*)
+		ERROR 1 "unknown option \"${1}\" for ${action} action"
+		;;
+	    *)
+		units_dir=$1
+		shift
+		validators_dir=$1
+		shift
+		break;
+		;;
+	esac
+    done
+
+    if [ $# -gt 0 ]; then
+	ERROR 1 "too many arguments for ${action} action: $*"
+    elif [ -z "${units_dir}" ]; then
+	ERROR 1 "UNITS_DIR parameter is not given in ${action} action"
+    elif [ -z "${validators_dir}" ]; then
+	ERROR 1 "VALIDATORS_DIR parameter is not given in ${action} action"
+    fi
+
+    if ! [ -d "${units_dir}" ]; then
+	ERROR 1 "No such directory: ${units_dir}"
+    elif ! [ -d "${validators_dir}" ]; then
+	ERROR 1 "No such directory: ${units_dir}"
+    fi
+
+    if ! ( [ "${COLORIZED_OUTPUT}" = 'yes' ] || [ "${COLORIZED_OUTPUT}" = 'no' ] ); then
+	ERROR 1 "unexpected option argument for --colorized-output: ${COLORIZED_OUTPUT}"
+    fi
+
+    if [ -n "${validators}" ]; then
+	VALIDATORS=$(echo "${validators}" | tr ',' ' ')
+	for v in ${VALIDATORS}; do
+	    validate_validator "$v" "${validators_dir}" error
+	done
+    fi
+
+    for d in ${units_dir}/*.r; do
+	[ -d "$d" ] || continue
+	category=${d##*/}
+	echo
+	echo "Category: ${category}"
+	line
+	validate_category "${category}" "$d" "${validators_dir}"
+    done
+
+    echo
+    echo "Category: ${_DEFAULT_CATEGORY}"
+    line
+    for d in ${units_dir}/*.[dbtiv]; do
+	[ -d "$d" ] || continue
+	validate_dir "$d" "${_NOOP_VALIDATOR}" "$validators_dir"
+    done
+
+    validate_summary
+    return $?
+}
+
 # * Avoid issues between sed and the locale settings by overriding it using
 #   LC_ALL, which takes precedence over all other locale configurations:
 #   https://www.gnu.org/software/gettext/manual/html_node/Locale-Environment-Variables.html
 #
 # * Avoid unexpected pathname conversion on MSYS2.
-#   http://sourceforge.net/p/msys2/wiki/Porting/#filesystem-namespaces
+#   https://github.com/msys2/msys2/wiki/Porting#filesystem-namespaces
 prepare_environment ()
 {
     _PREPERE_ENV=$(cat <<'EOF'
 LC_ALL="C"; export LC_ALL
-MSYS2_ARG_CONV_EXCL=--regex-; export MSYS2_ARG_CONV_EXCL
+MSYS2_ARG_CONV_EXCL='--regex-;--_scopesep' export MSYS2_ARG_CONV_EXCL
 EOF
 )
     eval ${_PREPERE_ENV}
@@ -2394,6 +2932,10 @@ main ()
 	    ;;
 	slap)
 	    action_chop "$@"
+	    return $?
+	    ;;
+	validate-input)
+	    action_validate_input "$@"
 	    return $?
 	    ;;
 	*)

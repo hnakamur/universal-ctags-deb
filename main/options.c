@@ -12,6 +12,9 @@
 */
 #include "general.h"  /* must always come first */
 
+#define OPTION_WRITE
+#include "options_p.h"
+
 #ifndef _GNU_SOURCE
 # define _GNU_SOURCE   /* for asprintf */
 #endif
@@ -22,19 +25,18 @@
 
 #include "ctags.h"
 #include "debug.h"
-#include "field.h"
-#include "keyword.h"
-#include "main.h"
-#define OPTION_WRITE
-#include "options.h"
-#include "parse.h"
-#include "ptag.h"
-#include "routines.h"
-#include "xtag.h"
-#include "routines.h"
-#include "error.h"
-#include "interactive.h"
-#include "writer.h"
+#include "field_p.h"
+#include "gvars.h"
+#include "keyword_p.h"
+#include "main_p.h"
+#include "parse_p.h"
+#include "ptag_p.h"
+#include "routines_p.h"
+#include "xtag_p.h"
+#include "param_p.h"
+#include "error_p.h"
+#include "interactive_p.h"
+#include "writer_p.h"
 #include "trace.h"
 
 #ifdef HAVE_JANSSON
@@ -108,7 +110,7 @@ typedef const struct sBooleanOption {
 	bool* pValue;    /* pointer to option value */
 	bool initOnly;   /* option must be specified before any files */
 	unsigned long acceptableStages;
-	bool* (* redirect) (const struct sBooleanOption *const option);
+	void (* set) (const struct sBooleanOption *const option, bool value);
 } booleanOption;
 
 /*
@@ -129,6 +131,9 @@ static const char *const HeaderExtensions [] = {
 	"h", "H", "hh", "hpp", "hxx", "h++", "inc", "def", NULL
 };
 
+long ctags_debugLevel = 0L;
+bool ctags_verbose = false;
+
 optionValues Option = {
 	.append = false,
 	.backward = false,
@@ -142,7 +147,6 @@ optionValues Option = {
 	,
 	.recurse = false,
 	.sorted = SO_SORTED,
-	.verbose = false,
 	.xref = false,
 	.customXfmt = NULL,
 	.fileList = NULL,
@@ -169,8 +173,8 @@ optionValues Option = {
 	.putFieldPrefix = false,
 	.maxRecursionDepth = 0xffffffff,
 	.interactive = false,
+	.mtablePrintTotals = false,
 #ifdef DEBUG
-	.debugLevel = 0,
 	.breakLine = 0,
 #endif
 };
@@ -238,19 +242,19 @@ static optionDescription LongOptionDescription [] = {
  {1,"      Include reference to 'file' in Emacs-style tag file (requires -e)."},
  {1,"  --exclude=pattern"},
  {1,"      Exclude files and directories matching 'pattern'."},
- {0,"  --excmd=number|pattern|mix"},
+ {0,"  --excmd=number|pattern|mix|combine"},
 #ifdef MACROS_USE_PATTERNS
  {0,"       Uses the specified type of EX command to locate tags [pattern]."},
 #else
  {0,"       Uses the specified type of EX command to locate tags [mix]."},
 #endif
  {1,"  --extras=[+|-]flags"},
- {1,"      Include extra tag entries for selected information (flags: \"Ffq.\") [F]."},
+ {1,"      Include extra tag entries for selected information (flags: \"fFgpqrs\") [F]."},
  {1,"  --extras-<LANG|*>=[+|-]flags"},
  {1,"      Include <LANG> own extra tag entries for selected information"},
  {1,"      (flags: see the output of --list-extras=<LANG> option)."},
  {1,"  --fields=[+|-]flags"},
- {1,"      Include selected extension fields (flags: \"afmikKlnsStzZ\") [fks]."},
+ {1,"      Include selected extension fields (flags: \"aCeEfFikKlmnNpPrRsStxzZ\") [fks]."},
  {1,"  --fields-<LANG|*>=[+|-]flags"},
  {1,"      Include selected <LANG> own extension fields"},
  {1,"      (flags: see the output of --list-fields=<LANG> option)."},
@@ -310,6 +314,8 @@ static optionDescription LongOptionDescription [] = {
  {1,"       Indicate whether symbolic links should be followed [yes]."},
  {1,"  --list-aliases=[language|all]"},
  {1,"       Output list of alias patterns."},
+ {1,"  --list-excludes"},
+ {1,"       Output list of exclude patterns for excluding files/directories."},
  {1,"  --list-extras=[language|all]"},
  {1,"       Output list of extra tag flags."},
  {1,"  --list-features"},
@@ -465,8 +471,13 @@ static optionDescription ExperimentalLongOptionDescription [] = {
  {1,"       Copy patterns of a regex table to another regex table."},
  {1,"  --_mtable-regex-<LANG>=table/line_pattern/name_pattern/[flags]"},
  {1,"       Define multitable regular expression for locating tags in specific language."},
+ {1,"  --_mtable-totals=[yes|no]"},
+ {1,"       Print statistics about mtable usage [no]."},
  {1,"  --_roledef-<LANG>=kind_letter.role_name,role_desc"},
  {1,"       Define new role for kind specified with <kind_letter> in <LANG>."},
+ {1,"  --_scopesep-<LANG>=[parent_kind_letter]/child_kind_letter:separator"},
+ {1,"       Specify scope separator between <PARENT_KIND> and <KIND>."},
+ {1,"       * as a kind letter matches any kind."},
  {1,"  --_tabledef-<LANG>=name"},
  {1,"       Define new regex table for <LANG>."},
 #ifdef DO_TRACING
@@ -632,7 +643,7 @@ int asprintf(char **strp, const char *fmt, ...)
 
 extern void verbose (const char *const format, ...)
 {
-	if (Option.verbose)
+	if (ctags_verbose)
 	{
 		va_list ap;
 		va_start (ap, format);
@@ -1156,7 +1167,10 @@ static void processExcmdOption (
 		case 'n': Option.locate = EX_LINENUM; break;
 		case 'p': Option.locate = EX_PATTERN; break;
 		default:
-			error (FATAL, "Invalid value for \"%s\" option", option);
+			if (strcmp(parameter, "combine") == 0)
+				Option.locate = EX_COMBINE;
+			else
+				error (FATAL, "Invalid value for \"%s\" option", option);
 			break;
 	}
 }
@@ -1393,6 +1407,37 @@ static void printOptionDescriptions (const optionDescription *const optDesc)
 			puts (optDesc [i].description);
 	}
 }
+
+
+static int excludesCompare (struct colprintLine *a, struct colprintLine *b)
+{
+	return strcmp (colprintLineGetColumn (a, 0), colprintLineGetColumn (b, 0));
+}
+
+static void processListExcludesOption(const char *const option CTAGS_ATTR_UNUSED,
+				      const char *const parameter CTAGS_ATTR_UNUSED)
+{
+	int i;
+	struct colprintTable *table = colprintTableNew ("L:NAME", NULL);
+
+	const int max = Excluded ? stringListCount (Excluded) : 0;
+
+	for (i = 0; i < max; ++i)
+	{
+		struct colprintLine * line = colprintTableGetNewLine (table);
+		colprintLineAppendColumnVString (line, stringListItem (Excluded, i));
+	}
+
+	colprintTableSort (table, excludesCompare);
+	colprintTablePrint (table, 0, localOption.withListHeader, localOption.machinable, stdout);
+	colprintTableDelete (table);
+
+	if (i == 0)
+		putchar ('\n');
+
+	exit (0);
+}
+
 
 static void printFeatureList (void)
 {
@@ -2620,15 +2665,11 @@ static void processPatternLengthLimit(const char *const option, const char *cons
 		error (FATAL, "-%s: Invalid pattern length limit", option);
 }
 
-static bool* redirectToXtag(booleanOption *const option)
+static void setBooleanToXtag(booleanOption *const option, bool value)
 {
 	/* WARNING/TODO: This function breaks capsulization. */
 	xtagType t = (xtagType)option->pValue;
-	bool default_value = isXtagEnabled (t);
-
-	enableXtag (t, default_value);
-
-	return &(getXtagDefinition (t)->enabled);
+	enableXtag (t, value);
 }
 
 /*
@@ -2661,6 +2702,7 @@ static parametricOption ParametricOptions [] = {
 	{ "langmap",                processLanguageMapOption,       false,  STAGE_ANY },
 	{ "license",                processLicenseOption,           true,   STAGE_ANY },
 	{ "list-aliases",           processListAliasesOption,       true,   STAGE_ANY },
+	{ "list-excludes",          processListExcludesOption,      true,   STAGE_ANY },
 	{ "list-extras",            processListExtrasOption,        true,   STAGE_ANY },
 	{ "list-features",          processListFeaturesOption,      true,   STAGE_ANY },
 	{ "list-fields",            processListFieldsOption,        true,   STAGE_ANY },
@@ -2706,8 +2748,8 @@ static parametricOption ParametricOptions [] = {
 
 static booleanOption BooleanOptions [] = {
 	{ "append",         &Option.append,                 true,  STAGE_ANY },
-	{ "file-scope",     ((bool *)XTAG_FILE_SCOPE),   false, STAGE_ANY, redirectToXtag },
-	{ "file-tags",      ((bool *)XTAG_FILE_NAMES),   false, STAGE_ANY, redirectToXtag },
+	{ "file-scope",     ((bool *)XTAG_FILE_SCOPE),   false, STAGE_ANY, setBooleanToXtag },
+	{ "file-tags",      ((bool *)XTAG_FILE_NAMES),   false, STAGE_ANY, setBooleanToXtag },
 	{ "filter",         &Option.filter,                 true,  STAGE_ANY },
 	{ "guess-language-eagerly", &Option.guessLanguageEagerly, false, STAGE_ANY },
 	{ "line-directives",&Option.lineDirectives,         false, STAGE_ANY },
@@ -2720,9 +2762,10 @@ static booleanOption BooleanOptions [] = {
 	{ "recurse",        &Option.recurse,                false, STAGE_ANY },
 #endif
 	{ "totals",         &Option.printTotals,            true,  STAGE_ANY },
-	{ "verbose",        &Option.verbose,                false, STAGE_ANY },
+	{ "verbose",        &ctags_verbose,                false, STAGE_ANY },
 	{ "with-list-header", &localOption.withListHeader,       true,  STAGE_ANY },
 	{ "_fatal-warnings",&Option.fatalWarnings,          false, STAGE_ANY },
+	{ "_mtable-totals", &Option.mtablePrintTotals,      false, STAGE_ANY },
 };
 
 /*
@@ -2778,7 +2821,6 @@ static bool processBooleanOption (
 	for (i = 0  ;  i < count  &&  ! found  ;  ++i)
 	{
 		booleanOption* const entry = &BooleanOptions [i];
-		bool *slot;
 		if (strcmp (option, entry->name) == 0)
 		{
 			found = true;
@@ -2790,11 +2832,12 @@ static bool processBooleanOption (
 			}
 			if (entry->initOnly)
 				checkOptionOrder (option, true);
-			if (entry->redirect)
-				slot = entry->redirect (entry);
+
+			bool value = getBooleanOption (option, parameter);
+			if (entry->set)
+				entry->set (entry, value);
 			else
-				slot = entry->pValue;
-			*slot = getBooleanOption (option, parameter);
+				*entry->pValue = value;
 		}
 	}
 	return found;
@@ -3144,6 +3187,8 @@ static void processLongOption (
 #endif
 	else if (processRoledefOption (option, parameter))
 		;
+	else if (processScopesepOption (option, parameter))
+		;
 	else
 		error (FATAL, "Unknown option: --%s", option);
 }
@@ -3175,11 +3220,11 @@ static void processShortOption (
 			Option.breakLine = atol (parameter);
 			break;
 		case 'd':
-			if (!strToLong(parameter, 0, &Option.debugLevel))
+			if (!strToLong(parameter, 0, &ctags_debugLevel))
 				error (FATAL, "-%s: Invalid debug level", option);
 
 			if (debug (DEBUG_STATUS))
-				Option.verbose = true;
+				ctags_verbose = true;
 			break;
 #endif
 		case 'B':
@@ -3246,7 +3291,7 @@ static void processShortOption (
 			Option.sorted = SO_UNSORTED;
 			break;
 		case 'V':
-			Option.verbose = true;
+			ctags_verbose = true;
 			break;
 		case 'w':
 			/* silently ignored */
@@ -3623,6 +3668,7 @@ extern void initOptions (void)
 	processExcludeOption (NULL, ".cvsignore");
 	processExcludeOption (NULL, "_darcs");
 	processExcludeOption (NULL, ".deps");
+	processExcludeOption (NULL, ".DS_Store");
 	processExcludeOption (NULL, "EIFGEN");
 	processExcludeOption (NULL, ".git");
 	processExcludeOption (NULL, ".gitignore");
@@ -3697,4 +3743,14 @@ static void processDumpOptionsOption (const char *const option CTAGS_ATTR_UNUSED
 	fprintf(stdout, "# %s\n", "BooleanOptions");
 	for (unsigned int i = 0; i < ARRAY_SIZE(BooleanOptions); i++)
 		fprintf(stdout, "%s\n", BooleanOptions[i].name);
+}
+
+extern bool inSandbox (void)
+{
+	return (Option.interactive == INTERACTIVE_SANDBOX);
+}
+
+extern bool canUseLineNumberAsLocator (void)
+{
+	return (Option.locate != EX_PATTERN);
 }

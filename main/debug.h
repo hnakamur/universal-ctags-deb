@@ -14,17 +14,18 @@
 */
 #include "general.h"  /* must always come first */
 
+#include "gvars.h"
+#include "types.h"
 #ifdef DEBUG
 # include <assert.h>
 #endif
-#include "entry.h"
 
 /*
 *   Macros
 */
 
 #ifdef DEBUG
-# define debug(level)      ((Option.debugLevel & (long)(level)) != 0)
+# define debug(level)      ((ctags_debugLevel & (long)(level)) != 0)
 # define DebugStatement(x) x
 # define PrintStatus(x)    if (debug(DEBUG_STATUS)) printf x;
 # ifdef NDEBUG

@@ -3,7 +3,7 @@
 [![Coverage Status](https://coveralls.io/repos/universal-ctags/ctags/badge.svg?branch=master&service=github)](https://coveralls.io/github/universal-ctags/ctags?branch=master)
 [![Build status](https://ci.appveyor.com/api/projects/status/6hk2p5lv6jsrd9o7/branch/master?svg=true)](https://ci.appveyor.com/project/universalctags/ctags/branch/master)
 [![RTD build status](https://readthedocs.org/projects/ctags/badge)](http://docs.ctags.io)
-[![CircleCI Build Status](https://circleci.com/gh/universal-ctags/ctags.svg?style=shield&circle-token=2e582261da84ebc6d21725b05381f410bc5de29d)](https://circleci.com/gh/universal-ctags/ctags.svg)
+[![CircleCI Build Status](https://circleci.com/gh/universal-ctags/ctags.svg?style=shield&circle-token=2e582261da84ebc6d21725b05381f410bc5de29d)](https://circleci.com/gh/universal-ctags)
 
 universal-ctags has the objective of continuing the development from
 what existed in the Sourceforge area. Github exuberant-ctags
@@ -24,6 +24,17 @@ Go to the [releases](https://github.com/universal-ctags/ctags-win32/releases) pa
 
 ### Mac
 See [Homebrew Tap for Universal Ctags](https://github.com/universal-ctags/homebrew-universal-ctags)
+
+### Docker
+Go to [ctags-docker](https://github.com/universal-ctags/ctags-docker) and follow
+instructions to download the `uctags` script. Docker will automatically fetch
+the image from Docker Hub.
+
+### Snap
+Go to [ctags-snap](https://github.com/universal-ctags/ctags-snap) and
+clone the `ctags-snap` repo. Then, follow instructions to build the
+snap package of ctags. Snapcraft will automatically fetch the source
+code from GitHub.
 
 ## How to build and install ##
 

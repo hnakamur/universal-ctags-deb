@@ -45,25 +45,11 @@
 
 #ifdef QUALIFIER
 #define xMalloc(n,Type)    (Type *)eMalloc((size_t)(n) * sizeof (Type))
-#define xCalloc(n,Type)    (Type *)eCalloc((size_t)(n), sizeof (Type))
 #define xRealloc(p,n,Type) (Type *)eRealloc((p), (n) * sizeof (Type))
 
 static void *eMalloc (const size_t size)
 {
 	void *buffer = malloc (size);
-
-	if (buffer == NULL)
-	{
-		fprintf(stderr, "out of memory");
-		abort ();
-	}
-
-	return buffer;
-}
-
-static void *eCalloc (const size_t count, const size_t size)
-{
-	void *buffer = calloc (count, size);
 
 	if (buffer == NULL)
 	{
@@ -361,12 +347,12 @@ MIO *mio_new_memory (unsigned char *data,
  * @size: the length of the data copied from @base to new mio
  *
  * Creates a new #MIO object by copying data from existing #MIO (@base).
- * The range for copying are given with @start and @size.
+ * The range for copying is given with @start and @size.
  * Copying data at the range from @start to the end of @base is
- * done if 0 is given as @size.
+ * done if -1 is given as @size.
  *
- * If @size(!= 0) is larger than the length from @start to the end of
- * @base, %NULL is return.
+ * If @size is larger than the length from @start to the end of
+ * @base, %NULL is returned.
  *
  * The function doesn't move the file position of @base.
  *
@@ -374,7 +360,7 @@ MIO *mio_new_memory (unsigned char *data,
  *
  */
 
-MIO *mio_new_mio (MIO *base, long start, size_t size)
+MIO *mio_new_mio (MIO *base, long start, long size)
 {
 	unsigned char *data;
 	long original_pos;
@@ -383,7 +369,7 @@ MIO *mio_new_mio (MIO *base, long start, size_t size)
 
 	original_pos = mio_tell (base);
 
-	if (size == 0)
+	if (size == -1)
 	{
 		long end;
 

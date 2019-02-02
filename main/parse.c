@@ -13,31 +13,43 @@
 */
 #include "general.h"  /* must always come first */
 
+/* TODO: This definition should be removed. */
+#define OPTION_WRITE
+#include "options_p.h"
+
 #include <string.h>
 
 #include "ctags.h"
 #include "debug.h"
-#include "entry.h"
-#include "flags.h"
+#include "entry_p.h"
+#include "field_p.h"
+#include "flags_p.h"
 #include "htable.h"
 #include "keyword.h"
-#include "main.h"
-#define OPTION_WRITE
-#include "options.h"
-#include "parsers.h"
+#include "lxpath_p.h"
+#include "main_p.h"
+#include "param.h"
+#include "param_p.h"
+#include "parse_p.h"
+#include "parsers_p.h"
 #include "promise.h"
-#include "ptag.h"
+#include "promise_p.h"
+#include "ptag_p.h"
 #include "ptrarray.h"
 #include "read.h"
+#include "read_p.h"
 #include "routines.h"
+#include "routines_p.h"
 #include "subparser.h"
+#include "subparser_p.h"
 #include "trace.h"
 #include "trashbox.h"
+#include "trashbox_p.h"
 #include "vstring.h"
 #ifdef HAVE_ICONV
-# include "mbcs.h"
+# include "mbcs_p.h"
 #endif
-#include "xtag.h"
+#include "xtag_p.h"
 
 /*
  * DATA TYPES
@@ -144,16 +156,7 @@ extern unsigned int countParsers (void)
 extern int makeSimpleTag (
 		const vString* const name, const int kindIndex)
 {
-	int r = CORK_NIL;
-
-	if (isInputLanguageKindEnabled(kindIndex) &&  name != NULL  &&  vStringLength (name) > 0)
-	{
-		tagEntryInfo e;
-		initTagEntry (&e, vStringValue (name), kindIndex);
-
-		r = makeTagEntry (&e);
-	}
-	return r;
+	return makeSimpleRefTag (name, kindIndex, ROLE_INDEX_DEFINITION);
 }
 
 extern int makeSimpleRefTag (const vString* const name, const int kindIndex,
@@ -161,12 +164,10 @@ extern int makeSimpleRefTag (const vString* const name, const int kindIndex,
 {
 	int r = CORK_NIL;
 
-	if (! isXtagEnabled (XTAG_REFERENCE_TAGS))
-		return r;
+	Assert (roleIndex < (int)countInputLanguageRoles(kindIndex));
 
-	Assert (roleIndex < countInputLanguageRoles(kindIndex));
-
-	if (isInputLanguageRoleEnabled(kindIndex, roleIndex))
+	/* do not check for kind being disabled - that happens later in makeTagEntry() */
+	if (name != NULL  &&  vStringLength (name) > 0)
 	{
 	    tagEntryInfo e;
 	    initRefTagEntry (&e, vStringValue (name), kindIndex, roleIndex);
@@ -467,6 +468,151 @@ extern langType getLanguageForFilename (const char *const filename, langType sta
 									  &tmp_specType);
 }
 
+const char *scopeSeparatorFor (langType language, int kindIndex, int parentKindIndex)
+{
+	Assert (0 <= language  &&  language < (int) LanguageCount);
+
+	parserObject *parser = LanguageTable + language;
+	struct kindControlBlock *kcb = parser->kindControlBlock;
+
+	const scopeSeparator *sep = getScopeSeparator (kcb, kindIndex, parentKindIndex);
+	return sep? sep->separator: NULL;
+}
+
+static bool processLangDefineScopesep(const langType language,
+								  const char *const option,
+								  const char *const parameter)
+{
+	parserObject *parser;
+	const char * p = parameter;
+
+
+	char parentKletter;
+	int parentKindex = KIND_FILE_INDEX;
+	char kletter;
+	int kindex = KIND_FILE_INDEX;
+	const char *separator;
+
+	Assert (0 <= language  &&  language < (int) LanguageCount);
+	parser = LanguageTable + language;
+
+
+	/*
+	 * Parent
+	 */
+	parentKletter = p[0];
+
+	if (parentKletter == '\0')
+		error (FATAL, "no scope separator specified in \"--%s\" option", option);
+	else if (parentKletter == '/')
+		parentKindex = KIND_GHOST_INDEX;
+	else if (parentKletter == KIND_WILDCARD)
+		parentKindex = KIND_WILDCARD_INDEX;
+	else if (parentKletter == KIND_FILE_DEFAULT)
+		error (FATAL,
+			   "the kind letter `F' in \"--%s\" option is reserved for \"file\" kind and no separator can be assigned to",
+			   option);
+	else if (isalpha (parentKletter))
+	{
+		kindDefinition *kdef = getKindForLetter (parser->kindControlBlock, parentKletter);
+		if (kdef == NULL)
+			error (FATAL,
+				   "the kind for letter `%c' specified in \"--%s\" option is not defined.",
+				   parentKletter, option);
+		parentKindex = kdef->id;
+	}
+	else
+		error (FATAL,
+			   "the kind letter `%c` given in \"--%s\" option is not an alphabet",
+			   parentKletter, option);
+
+
+	/*
+	 * Child
+	 */
+	if (parentKindex == KIND_GHOST_INDEX)
+		kletter = p[1];
+	else
+	{
+		if (p[1] != '/')
+			error (FATAL,
+				   "wrong separator specification in \"--%s\" option: no slash after parent kind letter `%c'",
+				   option, parentKletter);
+		kletter = p[2];
+	}
+
+	if (kletter == '\0')
+		error (FATAL, "no child kind letter in \"--%s\" option", option);
+	else if (kletter == '/')
+		error (FATAL,
+			   "wrong separator specification in \"--%s\" option: don't specify slash char twice: %s",
+			   option, parameter);
+	else if (kletter == ':')
+		error (FATAL,
+			   "no child kind letter in \"--%s\" option", option);
+	else if (kletter == KIND_WILDCARD)
+	{
+		if (parentKindex != KIND_WILDCARD_INDEX
+			&& parentKindex != KIND_GHOST_INDEX)
+			error (FATAL,
+				   "cannot use wild card for child kind unless parent kind is also wild card or empty");
+		kindex = KIND_WILDCARD_INDEX;
+	}
+	else if (kletter == KIND_FILE_DEFAULT)
+		error (FATAL,
+			   "the kind letter `F' in \"--%s\" option is reserved for \"file\" kind and no separator can be assigned to",
+			   option);
+	else if (isalpha (kletter))
+	{
+		kindDefinition *kdef = getKindForLetter (parser->kindControlBlock, kletter);
+		if (kdef == NULL)
+			error (FATAL,
+				   "the kind for letter `%c' specified in \"--%s\" option is not defined.",
+				   kletter, option);
+		kindex = kdef->id;
+	}
+	else
+		error (FATAL,
+			   "the kind letter `%c` given in \"--%s\" option is not an alphabet",
+			   kletter, option);
+
+	/*
+	 * Separator
+	 */
+	if (parentKindex == KIND_GHOST_INDEX)
+	{
+		if (p[2] != ':')
+			error (FATAL,
+				   "wrong separator specification in \"--%s\" option: cannot find a colon after child kind: %s",
+				   option, parameter);
+		separator = p + 3;
+	}
+	else
+	{
+		if (p[3] != ':')
+			error (FATAL,
+				   "wrong separator specification in \"--%s\" option: cannot find a colon after child kind: %s",
+				   option, parameter);
+		separator = p + 4;
+	}
+
+	Assert (parentKindex != KIND_FILE_INDEX);
+	Assert (kindex != KIND_FILE_INDEX);
+	defineScopeSeparator (parser->kindControlBlock, kindex, parentKindex, separator);
+	return true;
+}
+
+extern bool processScopesepOption (const char *const option, const char * const parameter)
+{
+	langType language;
+
+	language = getLanguageComponentInOption (option, "_scopesep-");
+	if (language == LANG_IGNORE)
+		return false;
+
+	return processLangDefineScopesep (language, option, parameter);
+}
+
 static parserCandidate* parserCandidateNew(unsigned int count CTAGS_ATTR_UNUSED)
 {
 	parserCandidate* candidates;
@@ -591,7 +737,7 @@ static vString* determineEmacsModeAtFirstLine (const char* const line)
 	for ( ;  isspace ((int) *p)  ;  ++p)
 		;  /* no-op */
 
-	if (strncmp(p, "mode:", strlen("mode:")) == 0)
+	if (strncasecmp(p, "mode:", strlen("mode:")) == 0)
 	{
 		/* -*- mode: MODE; -*- */
 		p += strlen("mode:");
@@ -859,7 +1005,7 @@ struct getLangCtx {
 		    (mio_memory_get_data((_glc_)->input, NULL) == NULL)) \
 		{							\
 			MIO *tmp_ = (_glc_)->input;			\
-			(_glc_)->input = mio_new_mio (tmp_, 0, 0);	\
+			(_glc_)->input = mio_new_mio (tmp_, 0, -1);	\
 			mio_free (tmp_);				\
 			if (!(_glc_)->input) {				\
 				(_glc_)->err = true;			\
@@ -1601,10 +1747,6 @@ static void initializeParserOne (langType lang)
 	   xtag definitions. */
 	installTagRegexTable (lang);
 
-	if (hasLanguageScopeActionInRegex (lang)
-	    || parser->def->requestAutomaticFQTag)
-		parser->def->useCork = true;
-
 	if (parser->def->initialize != NULL)
 		parser->def->initialize (lang);
 
@@ -1819,6 +1961,7 @@ struct preLangDefFlagData
 {
 	char *base;
 	subparserRunDirection direction;
+	bool autoFQTag;
 };
 
 static void pre_lang_def_flag_base_long (const char* const optflag, const char* const param, void* data)
@@ -1861,6 +2004,14 @@ static void pre_lang_def_flag_direction_long (const char* const optflag, const c
 		AssertNotReached ();
 }
 
+static void pre_lang_def_flag_autoFQTag_long (const char* const optflag,
+											  const char* const param CTAGS_ATTR_UNUSED,
+											  void* data)
+{
+	struct preLangDefFlagData * flag_data = data;
+	flag_data->autoFQTag = true;
+}
+
 static flagDefinition PreLangDefFlagDef [] = {
 	{ '\0',  "base", NULL, pre_lang_def_flag_base_long,
 	  "BASEPARSER", "utilize as a base parser"},
@@ -1875,6 +2026,8 @@ static flagDefinition PreLangDefFlagDef [] = {
 	  pre_lang_def_flag_direction_long,
 	  NULL, "utilize the base parser both 'dedicated' and 'shared' way"
 	},
+	{ '\0',  "_autoFQTag", NULL, pre_lang_def_flag_autoFQTag_long,
+	  NULL, "make full qualified tags automatically based on scope information"},
 };
 
 static void optlibFreeDep (langType lang, bool initialized CTAGS_ATTR_UNUSED)
@@ -1944,6 +2097,7 @@ extern void processLanguageDefineOption (
 		struct preLangDefFlagData data = {
 			.base = NULL,
 			.direction = SUBPARSER_UNKNOWN_DIRECTION,
+			.autoFQTag = false,
 		};
 		flagsEval (flags, PreLangDefFlagDef, ARRAY_SIZE (PreLangDefFlagDef), &data);
 
@@ -1956,6 +2110,8 @@ extern void processLanguageDefineOption (
 		def = OptlibParser (name, data.base, data.direction);
 		if (data.base)
 			eFree (data.base);
+
+		def->requestAutomaticFQTag = data.autoFQTag;
 
 		initializeParsingCommon (def, false);
 		linkDependenciesAtInitializeParsing (def);
@@ -2186,7 +2342,7 @@ static bool processLangDefineKind(const langType language,
 	if (letter == ',')
 		error (FATAL, "no kind letter specified in \"--%s\" option", option);
 	if (!isalnum (letter))
-		error (FATAL, "the kind letter give in \"--%s\" option is not an alphabet or a number", option);
+		error (FATAL, "the kind letter given in \"--%s\" option is not an alphabet or a number", option);
 	else if (letter == KIND_FILE_DEFAULT)
 		error (FATAL, "the kind letter `F' in \"--%s\" option is reserved for \"file\" kind", option);
 	else if (getKindForLetter (parser->kindControlBlock, letter))
@@ -2285,7 +2441,7 @@ static bool processLangDefineRole(const langType language,
 	if (kletter == '.')
 		error (FATAL, "no kind letter specified in \"--%s\" option", option);
 	if (!isalnum (kletter))
-		error (FATAL, "the kind letter give in \"--%s\" option is not an alphabet or a number", option);
+		error (FATAL, "the kind letter given in \"--%s\" option is not an alphabet or a number", option);
 	else if (kletter == KIND_FILE_DEFAULT)
 		error (FATAL, "the kind letter `F' in \"--%s\" option is reserved for \"file\" kind and no role can be attached to", option);
 
@@ -3045,6 +3201,13 @@ static bool doesParserUseCork (parserDefinition *parser)
 	if (parser->useCork)
 		return true;
 
+	if (hasLanguageScopeActionInRegex (parser->id)
+	    || parser->requestAutomaticFQTag)
+	{
+		parser->useCork = true;
+		return true;
+	}
+
 	pushLanguage (parser->id);
 	foreachSubparser(tmp, true)
 	{
@@ -3161,7 +3324,8 @@ static bool createTagsWithFallback1 (const langType language,
 extern bool runParserInNarrowedInputStream (const langType language,
 					       unsigned long startLine, long startCharOffset,
 					       unsigned long endLine, long endCharOffset,
-					       unsigned long sourceLineOffset)
+					       unsigned long sourceLineOffset,
+					       int promise)
 {
 	bool tagFileResized;
 
@@ -3178,7 +3342,8 @@ extern bool runParserInNarrowedInputStream (const langType language,
 	pushNarrowedInputStream (
 				 startLine, startCharOffset,
 				 endLine, endCharOffset,
-				 sourceLineOffset);
+				 sourceLineOffset,
+				 promise);
 	tagFileResized = createTagsWithFallback1 (language, NULL);
 	popNarrowedInputStream  ();
 	return tagFileResized;

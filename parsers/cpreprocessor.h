@@ -19,36 +19,49 @@
 /*
 *   MACROS
 */
+
+/*
+ * cppIs... macros are for the value returned from cppGetc().  Don't
+ * use "char" value. Don't pass a value stored to C-string
+ * (char*... or char[]) or vString.
+ *
+ * cppGetc() can return the value out of range of unsigned char.
+ * cppGetc calls skipToEndOfString() and skipToEndOfString() internally.
+ * They return STRING_SYMBOL (== 338) and CHAR_SYMBOL (== 322) in a
+ * case. (cppGetc() can return EOF (== -1). However, it is not an issue
+ * here.)
+ *
+ * is...() macros/functions defined in ctype.h can handle the value of
+ * an unsigned char or EOF; we cannot pass STRING_SYMBOL or CHAR_SYMBOL
+ * returned from cppGetc().
+ *
+ * Depending on the platform, isalpha(338) returns different value.
+ * As far as Fedora22, it returns 0. On Windows 2010, it returns 1.
+ *
+ * So, we need cppIs... macros.
+ * cppIs... macros considers STRING_SYMBOL and CHAR_SYMBOL */
+
+#define cppIsascii(c) ((c >= 0) && (c < 0x80))
+/* isascii is not portable enough. */
+
 /*  Is the character valid as a character of a C identifier?
  *  VMS allows '$' in identifiers.
  */
-#define cppIsident(c)  (isalnum(c) || (c) == '_' || (c) == '$')
+#define cppIsalnum(c)  (cppIsascii(c) && isalnum(c))
+#define cppIsident(c)  (cppIsalnum(c)					\
+						|| (c) == '_' || (c) == '$')
 
 /*  Is the character valid as the first character of a C identifier?
  *  C++ allows '~' in destructors.
  *  VMS allows '$' in identifiers.
  */
-#define cppIsident1(c)  ( ((c >= 0) && (c < 0x80) && isalpha(c)) \
-		       || (c) == '_' || (c) == '~' || (c) == '$')
-/* NOTE about isident1 profitability
+#define cppIsalpha(c)   (cppIsascii(c) && isalpha(c))
+#define cppIsident1(c)  (cppIsalpha(c)					\
+						  || (c) == '_' || (c) == '~' || (c) == '$')
 
-   Doing the same as isascii before passing value to isalpha
-   ----------------------------------------------------------
-   cppGetc() can return the value out of range of char.
-   cppGetc calls skipToEndOfString and skipToEndOfString can
-   return STRING_SYMBOL(== 338).
+#define cppIsspace(c)   (cppIsascii(c) && isspace(c))
+#define cppIsdigit(c)   (cppIsascii(c) && isdigit(c))
 
-   Depending on the platform, isalpha(338) returns different value .
-   As far as Fedora22, it returns 0. On Windows 2010, it returns 1.
-
-   man page on Fedora 22 says:
-
-       These functions check whether c, which must have the value of an
-       unsigned char or EOF, falls into a certain character class
-       according to the specified locale.
-
-   isascii is for suitable to verify the range of input. However, it
-   is not portable enough. */
 
 #define RoleTemplateUndef { true, "undef", "undefined" }
 
@@ -76,7 +89,7 @@ extern void cppEndStatement (void);
 extern void cppUngetc (const int c);
 extern void cppUngetString(const char * string,int len);
 extern int cppGetc (void);
-extern int cppSkipOverCComment (void);
+extern const vString * cppGetLastCharOrStringContents (void);
 
 /* notify the external parser state for the purpose of conditional
    branch choice. The CXX parser stores the block level here. */
