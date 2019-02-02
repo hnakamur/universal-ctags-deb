@@ -12,9 +12,15 @@
 #ifndef CTAGS_MAIN_XTAG_H
 #define CTAGS_MAIN_XTAG_H
 
-#include "general.h"
-#include "colprint.h"
+/*
+*   INCLUDE FILES
+*/
 
+#include "general.h"
+
+/*
+*   DATA DECLARATIONS
+*/
 
 typedef enum eXtagType { /* extra tag content control */
 	XTAG_UNKNOWN = -1,
@@ -32,7 +38,7 @@ typedef enum eXtagType { /* extra tag content control */
 	XTAG_COUNT
 } xtagType;
 
-typedef struct sXtagDefinition {
+struct sXtagDefinition {
 	bool enabled;
 	/* letter, and ftype are initialized in the main part,
 	   not in a parser. */
@@ -54,30 +60,8 @@ typedef struct sXtagDefinition {
 	void (* enable)    (struct sXtagDefinition *def, bool state);
 
 	unsigned int xtype;	/* Given from the main part */
-} xtagDefinition;
+};
 
-extern xtagDefinition* getXtagDefinition (xtagType type);
-extern xtagType  getXtagTypeForLetter (char letter);
-extern xtagType  getXtagTypeForNameAndLanguage (const char *name, langType language);
 extern bool isXtagEnabled (xtagType type);
-extern bool enableXtag (xtagType type, bool state);
-extern bool isXtagFixed (xtagType type);
-extern bool isCommonXtag (xtagType type);
-extern int  getXtagOwner (xtagType type);
-
-const char* getXtagName (xtagType type);
-
-extern void initXtagObjects (void);
-extern int countXtags (void);
-
-extern int defineXtag (xtagDefinition *def, langType language);
-extern xtagType nextSiblingXtag (xtagType type);
-
-/* --list-extras implementation. LANGUAGE must be initialized. */
-extern struct colprintTable * xtagColprintTableNew (void);
-extern void xtagColprintAddCommonLines (struct colprintTable *table);
-extern void xtagColprintAddLanguageLines (struct colprintTable *table, langType language);
-extern void xtagColprintTablePrint (struct colprintTable *table,
-									bool withListHeader, bool machinable, FILE *fp);
 
 #endif	/* CTAGS_MAIN_FIELD_H */

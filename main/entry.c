@@ -39,22 +39,26 @@
 #include <stdint.h>
 
 #include "debug.h"
-#include "entry.h"
+#include "entry_p.h"
 #include "field.h"
-#include "fmt.h"
+#include "fmt_p.h"
 #include "kind.h"
-#include "main.h"
-#include "options.h"
-#include "ptag.h"
+#include "main_p.h"
+#include "nestlevel.h"
+#include "options_p.h"
+#include "ptag_p.h"
 #include "read.h"
+#include "read_p.h"
 #include "routines.h"
+#include "routines_p.h"
+#include "parse_p.h"
 #include "ptrarray.h"
-#include "sort.h"
+#include "sort_p.h"
 #include "strlist.h"
-#include "subparser.h"
+#include "subparser_p.h"
 #include "trashbox.h"
-#include "writer.h"
-#include "xtag.h"
+#include "writer_p.h"
+#include "xtag_p.h"
 
 /*
 *   MACROS
@@ -494,6 +498,7 @@ static void copyFile (const char *const from, const char *const to, const long s
  */
 static int replacementTruncate (const char *const name, const long size)
 {
+#define WHOLE_FILE  -1L
 	char *tempName = NULL;
 	MIO *mio = tempFile ("w", &tempName);
 	mio_free (mio);
@@ -654,6 +659,7 @@ static size_t appendInputLine (int putc_func (char , void *), const char *const 
 {
 	size_t length = 0;
 	const char *p;
+	int extraLength = 0;
 
 	/*  Write everything up to, but not including, a line end character.
 	 */
@@ -666,7 +672,11 @@ static size_t appendInputLine (int putc_func (char , void *), const char *const 
 		if (c == CRETURN  ||  c == NEWLINE)
 			break;
 
-		if (Option.patternLengthLimit != 0 && length >= Option.patternLengthLimit)
+		if (Option.patternLengthLimit != 0 && length >= Option.patternLengthLimit &&
+			/* Do not cut inside a multi-byte UTF-8 character, but safe-guard it not to
+			 * allow more than one extra valid UTF-8 character in case it's not actually
+			 * UTF-8.  To do that, limit to an extra 3 UTF-8 sub-bytes (0b10xxxxxx). */
+			((((unsigned char) c) & 0xc0) != 0x80 || ++extraLength > 3))
 		{
 			*omitted = true;
 			break;
@@ -696,11 +706,12 @@ static int vstring_putc (char c, void *data)
 static int vstring_puts (const char* s, void *data)
 {
 	vString *str = data;
-	int len = vStringLength (str);
+	size_t len = vStringLength (str);
 	vStringCatS (str, s);
-	return vStringLength (str) - len;
+	return (int) (vStringLength (str) - len);
 }
 
+#ifdef DEBUG
 static bool isPosSet(MIOPos pos)
 {
 	char * p = (char *)&pos;
@@ -711,18 +722,13 @@ static bool isPosSet(MIOPos pos)
 		r |= p[i];
 	return r;
 }
+#endif
 
-extern char *readLineFromBypassAnyway (vString *const vLine, const tagEntryInfo *const tag,
+extern char *readLineFromBypassForTag (vString *const vLine, const tagEntryInfo *const tag,
 				   long *const pSeekValue)
 {
-	char * line;
-
-	if (isPosSet (tag->filePosition) || (tag->pattern == NULL))
-		line = 	readLineFromBypass (vLine, tag->filePosition, pSeekValue);
-	else
-		line = readLineFromBypassSlow (vLine, tag->lineNumber, tag->pattern, pSeekValue);
-
-	return line;
+	Assert (isPosSet (tag->filePosition) || (tag->pattern == NULL));
+	return readLineFromBypass (vLine, tag->filePosition, pSeekValue);
 }
 
 /*  Truncates the text line containing the tag at the character following the
@@ -748,6 +754,7 @@ static char* getFullQualifiedScopeNameFromCorkQueue (const tagEntryInfo * inner_
 	int kindIndex = KIND_GHOST_INDEX;
 	langType lang;
 	const tagEntryInfo *scope = inner_scope;
+	const tagEntryInfo *root_scope = NULL;
 	stringList *queue = stringListNew ();
 	vString *v;
 	vString *n;
@@ -770,10 +777,15 @@ static char* getFullQualifiedScopeNameFromCorkQueue (const tagEntryInfo * inner_
 			kindIndex = scope->kindIndex;
 			lang = scope->langType;
 		}
+		root_scope = scope;
 		scope =  getEntryInCorkQueue (scope->extensionFields.scopeIndex);
 	}
 
 	n = vStringNew ();
+	sep = scopeSeparatorFor (root_scope->langType, root_scope->kindIndex, KIND_GHOST_INDEX);
+	if (sep)
+		vStringCatS(n, sep);
+
 	while ((c = stringListCount (queue)) > 0)
 	{
 		v = stringListLast (queue);
@@ -854,7 +866,7 @@ static int   makePatternStringCommon (const tagEntryInfo *const tag,
 	    && (memcmp (&tag->filePosition, &cached_location, sizeof(MIOPos)) == 0))
 		return puts_func (vStringValue (cached_pattern), output);
 
-	line = readLineFromBypass (TagFile.vLine, tag->filePosition, NULL);
+	line = readLineFromBypassForTag (TagFile.vLine, tag, NULL);
 	if (line == NULL)
 	{
 		/* This can be occurs if the size of input file is zero, and
@@ -965,7 +977,11 @@ extern void attachParserFieldToCorkEntry (int index,
 	Assert (tag != NULL);
 
 	v = eStrdup (value);
+
+	bool dynfields_allocated = tag->parserFieldsDynamic? true: false;
 	attachParserFieldGeneric (tag, ftype, v, true);
+	if (!dynfields_allocated && tag->parserFieldsDynamic)
+		PARSER_TRASH_BOX_TAKE_BACK(tag->parserFieldsDynamic);
 }
 
 extern const tagField* getParserField (const tagEntryInfo * tag, int index)
@@ -1205,6 +1221,11 @@ static bool isTagWritable(const tagEntryInfo *const tag)
 	return true;
 }
 
+static void buildFqTagCache (tagEntryInfo *const tag)
+{
+	getTagScopeInformation (tag, NULL, NULL);
+}
+
 static void writeTagEntry (const tagEntryInfo *const tag, bool checkingNeeded)
 {
 	int length = 0;
@@ -1218,10 +1239,12 @@ static void writeTagEntry (const tagEntryInfo *const tag, bool checkingNeeded)
 
 	if (includeExtensionFlags ()
 	    && isXtagEnabled (XTAG_QUALIFIED_TAGS)
-	    && doesInputLanguageRequestAutomaticFQTag ())
+	    && doesInputLanguageRequestAutomaticFQTag ()
+		&& !isTagExtraBitMarked (tag, XTAG_QUALIFIED_TAGS)
+		&& !tag->skipAutoFQEmission)
 	{
 		/* const is discarded to update the cache field of TAG. */
-		writerBuildFqTagCache ( (tagEntryInfo *const)tag);
+		buildFqTagCache ( (tagEntryInfo *const)tag);
 	}
 
 	length = writerWriteTag (TagFile.mio, tag);
@@ -1278,11 +1301,17 @@ extern void uncorkTagFile(void)
 	{
 		tagEntryInfo *tag = TagFile.corkQueue.queue + i;
 		writeTagEntry (tag, true);
+
 		if (doesInputLanguageRequestAutomaticFQTag ()
 		    && isXtagEnabled (XTAG_QUALIFIED_TAGS)
-		    && (tag->extensionFields.scopeKindIndex != KIND_GHOST_INDEX)
-		    && tag->extensionFields.scopeName
-		    && tag->extensionFields.scopeIndex)
+			&& !isTagExtraBitMarked (tag, XTAG_QUALIFIED_TAGS)
+			&& !tag->skipAutoFQEmission
+			&& ((tag->extensionFields.scopeKindIndex != KIND_GHOST_INDEX
+				 && tag->extensionFields.scopeName != NULL
+				 && tag->extensionFields.scopeIndex != CORK_NIL)
+				|| (tag->extensionFields.scopeKindIndex == KIND_GHOST_INDEX
+					&& tag->extensionFields.scopeName == NULL
+					&& tag->extensionFields.scopeIndex == CORK_NIL)))
 			makeQualifiedTagEntry (tag);
 	}
 	for (i = 1; i < TagFile.corkQueue.count; i++)
@@ -1342,6 +1371,7 @@ extern int makeTagEntry (const tagEntryInfo *const tag)
 {
 	int r = CORK_NIL;
 	Assert (tag->name != NULL);
+	Assert(tag->lineNumber > 0);
 
 	if (!TagFile.cork)
 		if (!isTagWritable (tag))
@@ -1435,6 +1465,60 @@ extern int makeQualifiedTagEntry (const tagEntryInfo *const e)
 	return r;
 }
 
+static void initTagEntryFull (tagEntryInfo *const e, const char *const name,
+			      unsigned long lineNumber,
+			      langType langType_,
+			      MIOPos      filePosition,
+			      const char *inputFileName,
+			      int kindIndex,
+			      roleBitsType roleBits,
+			      const char *sourceFileName,
+			      langType sourceLangType,
+			      long sourceLineNumberDifference)
+{
+	int i;
+
+	Assert (getInputFileName() != NULL);
+
+	memset (e, 0, sizeof (tagEntryInfo));
+	e->lineNumberEntry = (bool) (Option.locate == EX_LINENUM);
+	e->lineNumber      = lineNumber;
+	e->boundaryInfo    = getNestedInputBoundaryInfo (lineNumber);
+	e->langType        = langType_;
+	e->filePosition    = filePosition;
+	e->inputFileName   = inputFileName;
+	e->name            = name;
+	e->extensionFields.scopeLangType = LANG_AUTO;
+	e->extensionFields.scopeKindIndex = KIND_GHOST_INDEX;
+	e->extensionFields.scopeIndex     = CORK_NIL;
+
+	Assert (kindIndex < 0 || kindIndex < (int)countLanguageKinds(langType_));
+	e->kindIndex = kindIndex;
+
+	Assert (roleBits == 0
+			|| (roleBits < (makeRoleBit(countLanguageRoles(langType_, kindIndex)))));
+	e->extensionFields.roleBits = roleBits;
+	if (roleBits)
+		markTagExtraBit (e, XTAG_REFERENCE_TAGS);
+
+	if (doesParserRunAsGuest ())
+		markTagExtraBit (e, XTAG_TAGS_GENERATED_BY_GUEST_PARSERS);
+	if (doesSubparserRun ())
+		markTagExtraBit (e, XTAG_TAGS_GENERATED_BY_SUBPARSER);
+
+	e->sourceLangType = sourceLangType;
+	e->sourceFileName = sourceFileName;
+	e->sourceLineNumberDifference = sourceLineNumberDifference;
+
+	e->usedParserFields = 0;
+
+	for ( i = 0; i < PRE_ALLOCATED_PARSER_FIELDS; i++ )
+		e->parserFields[i].ftype = FIELD_UNKNOWN;
+
+	if (isParserMarkedNoEmission ())
+		e->placeholder = 1;
+}
+
 extern void initTagEntry (tagEntryInfo *const e, const char *const name,
 						  int kindIndex)
 {
@@ -1463,60 +1547,6 @@ extern void initRefTagEntry (tagEntryInfo *const e, const char *const name,
 			 getSourceFileTagPath(),
 			 getSourceLanguage(),
 			 getSourceLineNumber() - getInputLineNumber ());
-}
-
-extern void initTagEntryFull (tagEntryInfo *const e, const char *const name,
-			      unsigned long lineNumber,
-			      langType langType_,
-			      MIOPos      filePosition,
-			      const char *inputFileName,
-			      int kindIndex,
-			      roleBitsType roleBits,
-			      const char *sourceFileName,
-			      langType sourceLangType,
-			      long sourceLineNumberDifference)
-{
-	int i;
-
-	Assert (getInputFileName() != NULL);
-
-	memset (e, 0, sizeof (tagEntryInfo));
-	e->lineNumberEntry = (bool) (Option.locate == EX_LINENUM);
-	e->lineNumber      = lineNumber;
-	e->boundaryInfo    = getNestedInputBoundaryInfo (lineNumber);
-	e->langType        = langType_;
-	e->filePosition    = filePosition;
-	e->inputFileName   = inputFileName;
-	e->name            = name;
-	e->extensionFields.scopeLangType = LANG_AUTO;
-	e->extensionFields.scopeKindIndex = KIND_GHOST_INDEX;
-	e->extensionFields.scopeIndex     = CORK_NIL;
-
-	Assert (kindIndex < 0 || kindIndex < countLanguageKinds(langType_));
-	e->kindIndex = kindIndex;
-
-	Assert (roleBits == 0
-			|| (roleBits < (makeRoleBit(countLanguageRoles(langType_, kindIndex)))));
-	e->extensionFields.roleBits = roleBits;
-	if (roleBits)
-		markTagExtraBit (e, XTAG_REFERENCE_TAGS);
-
-	if (doesParserRunAsGuest ())
-		markTagExtraBit (e, XTAG_TAGS_GENERATED_BY_GUEST_PARSERS);
-	if (doesSubparserRun ())
-		markTagExtraBit (e, XTAG_TAGS_GENERATED_BY_SUBPARSER);
-
-	e->sourceLangType = sourceLangType;
-	e->sourceFileName = sourceFileName;
-	e->sourceLineNumberDifference = sourceLineNumberDifference;
-
-	e->usedParserFields = 0;
-
-	for ( i = 0; i < PRE_ALLOCATED_PARSER_FIELDS; i++ )
-		e->parserFields[i].ftype = FIELD_UNKNOWN;
-
-	if (isParserMarkedNoEmission ())
-		e->placeholder = 1;
 }
 
 static void    markTagExtraBitFull     (tagEntryInfo *const tag, xtagType extra, bool mark)
@@ -1603,7 +1633,7 @@ static void assignRoleFull(tagEntryInfo *const e, int roleIndex, bool assign)
 	}
 	else if (roleIndex > ROLE_INDEX_DEFINITION)
 	{
-		Assert (roleIndex < countLanguageRoles(e->langType, e->kindIndex));
+		Assert (roleIndex < (int)countLanguageRoles(e->langType, e->kindIndex));
 
 		if (assign)
 			e->extensionFields.roleBits |= (makeRoleBit(roleIndex));

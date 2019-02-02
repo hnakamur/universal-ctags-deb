@@ -38,10 +38,12 @@ The following parsers have been added:
 
 * Ada
 * AnsiblePlaybook *libyaml*
+* Asciidoc
 * Autoconf
 * Automake
 * AutoIt
 * Clojure
+* CMake *optlib*
 * CSS
 * Ctags option library *optlib*
 * CUDA
@@ -79,6 +81,7 @@ The following parsers have been added:
 * RpmSpec
 * Rust
 * SystemdUnit
+* SystemTap *optlib*
 * SystemVerilog
 * SVG *libxml*
 * TclOO (see :ref:`The new Tcl parser <tcl>`)
@@ -918,6 +921,39 @@ Subparsers can be listed with ``--list-subparser``:
     #NAME                          BASEPARSER           DIRECTION
     linux                          C                    base => sub {shared}
 
+Including line number to pattern field
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``--excmd=type`` specifies how ctags prints pattern field in a tags file.
+Universal-ctags inroduces ``combine`` as a new ``type``.
+
+.. IN MAN PAGE
+
+If ``combine`` is given, Universal-ctags combines adjusted line number
+and pattern with a semicolon as pattern. ctags adjusts the line number
+by decrementing or incrementing (if ``-B`` option is given) one.  This
+adjustment helps a client tool like vim to search the pattern from the
+line before (or after) the pattern starts.
+
+Let's see an example.
+
+.. code-block:: console
+
+	$ cat -n /tmp/foo.cc
+		 1	int foo(int i)
+		 2	{
+		 3	  return i;
+		 4	}
+		 5
+		 6	int foo(int i, int j)
+		 7	{
+		 8	  return i + j;
+		 9	}
+	$ ./ctags --excmd=combine -o - /tmp/foo.cc
+	foo	/tmp/foo.cc	0;/^int foo(int i)$/;"	f	typeref:typename:int
+	foo	/tmp/foo.cc	5;/^int foo(int i, int j)$/;"	f	typeref:typename:int
+
+
 Changes to the tags file format
 ---------------------------------------------------------------------
 
@@ -927,6 +963,19 @@ Truncating the pattern for long input lines
 To prevent generating overly large tags files, a pattern field is
 truncated, by default, when its size exceeds 96 bytes. A different
 limit can be specified with ``--pattern-length-limit=N``.
+
+The truncation avoids cutting in the middle of a UTF-8 code point
+spanning multiple bytes to prevent writing invalid byte sequences from
+valid input files. This handling allows for an extra 3 bytes above the
+configured limit in the worse case of a 4 byte code point starting
+right before the limit. Please also note that this handling is fairly
+naive and fast, and although it is resistant against any input, it
+requires a valid input to work properly; it is not guaranteed to work
+as the user expects when dealing with partially invalid UTF-8 input.
+This also partially affect non-UTF-8 input, if the byte sequence at
+the truncation length looks like a multibyte UTF-8 sequence. This
+should however be rare, and in the worse case will lead to including
+up to an extra 3 bytes above the limit.
 
 An input source file with long lines and multiple tag matches per
 line can generate an excessively large tags file with an
@@ -1056,7 +1105,7 @@ The fourth column shows whether the role is enabled or not.
 The fifth column shows the description of the role.
 
 You can define a role in an optlib parser for capturing reference
-tags. See :ref:`Capturing reference tags <capturing_reftag>` for more
+tags. See :ref:`Capturing reference tags <roles>` for more
 details.
 
 Currently ctags doesn't provide the way for disabling a

@@ -101,7 +101,6 @@
 #include "read.h"       /* to define file readLineFromInputFile() */
 #include "entry.h"      /* for the tag entry manipulation */
 #include "routines.h"   /* for generic malloc/realloc/free routines */
-#include "options.h"    /* for the Option structure */
 #include "debug.h"      /* for Assert */
 #include "xtag.h"
 
@@ -2121,16 +2120,16 @@ static void storeAdaTags(adaTokenInfo *token, const char *parentScope)
       {
         /* first create our new scope which is the parent scope + '.' + the
          * current tag name. */
-        currentScope = xMalloc(strlen(parentScope) + strlen(token->name) + 2,
-                               char);
-        strncpy(currentScope, parentScope, strlen(parentScope));
-        currentScope[strlen(parentScope)] = '.';
-        strncpy(&currentScope[strlen(parentScope) + 1], token->name,
-                strlen(token->name));
-        currentScope[strlen(parentScope) + 1 + strlen(token->name)] = '\0';
+        size_t parentScope_len = strlen(parentScope);
+        size_t name_len = strlen(token->name);
+        currentScope = xMalloc(parentScope_len + name_len + 2, char);
+        memcpy(currentScope, parentScope, parentScope_len);
+        currentScope[parentScope_len] = '.';
+        memcpy(&currentScope[parentScope_len + 1], token->name, name_len);
+        currentScope[parentScope_len + 1 + name_len] = '\0';
 
         token->tag.name = currentScope;
-	markTagExtraBit (&token->tag, XTAG_QUALIFIED_TAGS);
+        markTagExtraBit (&token->tag, XTAG_QUALIFIED_TAGS);
         makeTagEntry(&token->tag);
       } /* if(parentScope != NULL) */
       else
@@ -2219,7 +2218,7 @@ static void findAdaTags(void)
 /* parser definition function */
 extern parserDefinition* AdaParser(void)
 {
-  static const char *const extensions[] = { "adb", "ads", "Ada", NULL };
+  static const char *const extensions[] = { "adb", "ads", "Ada", "ada", NULL };
   parserDefinition* def = parserNew("Ada");
   def->kindTable = AdaKinds;
   def->kindCount = ADA_KIND_COUNT;

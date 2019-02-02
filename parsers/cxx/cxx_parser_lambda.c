@@ -116,6 +116,7 @@ CXXToken * cxxParserOpeningBracketIsLambda(void)
 	t = cxxTokenChainPreviousTokenOfType(
 			t,
 			CXXTokenTypeSquareParenthesisChain |
+			CXXTokenTypeBracketChain |
 			CXXTokenTypeAssignment |
 			CXXTokenTypeOperator
 		);
@@ -129,6 +130,17 @@ CXXToken * cxxParserOpeningBracketIsLambda(void)
 	if(!cxxTokenTypeIs(t,CXXTokenTypeSquareParenthesisChain))
 	{
 		CXX_DEBUG_LEAVE_TEXT("Not a lambda: no [] before assignment or operator");
+		return NULL;
+	}
+
+	if(
+		t->pPrev &&
+		// namely: operator [], operator new[], operator delete[]
+		cxxTokenTypeIs(t->pPrev,CXXTokenTypeKeyword)
+	)
+	{
+		// case 6
+		CXX_DEBUG_LEAVE_TEXT("Not a lambda: keyword before []");
 		return NULL;
 	}
 

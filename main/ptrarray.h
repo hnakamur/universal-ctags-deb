@@ -13,15 +13,16 @@
 *   INCLUDE FILES
 */
 #include "general.h"  /* must always come first */
+#include "types.h"
 
 /*
 *   DATA DECLARATIONS
 */
+struct sPtrArray;
+typedef struct sPtrArray ptrArray;
 
 typedef void (*ptrArrayDeleteFunc) (void *data);
 
-struct sPtrArray;
-typedef struct sPtrArray ptrArray;
 
 /*
 *   FUNCTION PROTOTYPES

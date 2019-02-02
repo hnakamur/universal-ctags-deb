@@ -13,7 +13,7 @@
 #include "general.h"  /* must always come first */
 
 #ifdef HAVE_STDLIB_H
-# include <stdlib.h>  /* to declare malloc (), realloc () */
+# include <stdlib.h>  /* to declare malloc (), realloc (), mbcs() */
 #endif
 #include <ctype.h>
 #include <string.h>
@@ -58,14 +58,12 @@
 #endif
 #include "debug.h"
 #include "routines.h"
-#ifdef HAVE_ICONV
-# include "mbcs.h"
-#endif
+#include "routines_p.h"
 #ifdef HAVE_ERRNO_H
 # include <errno.h>
 #endif
 
-#include "options.h"
+#include "vstring.h"
 
 /*
 *   MACROS
@@ -203,6 +201,18 @@ extern const char *getExecutableName (void)
 extern const char *getExecutablePath (void)
 {
 	return ExecutableProgram;
+}
+
+/*
+ *  compare file/dirname characters with platform-correct case sensitivity
+ */
+static bool fnmChEq (int c1, int c2)
+{
+#ifdef WIN32
+	return tolower( c1 ) == tolower( c2 );  /* case-insensitive */
+#else
+	return          c1   ==          c2  ;  /* case-  sensitive */
+#endif
 }
 
 /*
@@ -846,7 +856,7 @@ extern char* relativeFilename (const char *file, const char *dir)
 	absdir = absoluteFilename (file);
 	fp = absdir;
 	dp = dir;
-	while (*fp++ == *dp++)
+	while (fnmChEq (*fp++, *dp++))
 		continue;
 	fp--;
 	dp--;  /* back to the first differing char */

@@ -15,9 +15,12 @@
 #include "debug.h"
 #include "dependency.h"
 #include "options.h"
-#include "parse.h"
+#include "parse_p.h"
 #include "read.h"
+#include "routines.h"
 #include "subparser.h"
+#include "subparser_p.h"
+#include "xtag.h"
 
 #include <string.h>
 

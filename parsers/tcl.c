@@ -20,7 +20,6 @@
 #include "keyword.h"
 #include "entry.h"
 #include "routines.h"
-#include "debug.h"
 #include "ptrarray.h"
 #include "tcl.h"
 
@@ -31,20 +30,13 @@
 /*
 *   DATA DEFINITIONS
 */
-
-static scopeSeparator TclGenericSeparators [] = {
-	{ KIND_WILDCARD_INDEX, "::" },
-};
-
 typedef enum {
 	K_PROCEDURE, K_NAMESPACE
 } tclKind;
 
 static kindDefinition TclKinds [] = {
-	{ true, 'p', "procedure", "procedures",
-	  ATTACH_SEPARATORS(TclGenericSeparators)},
-	{ true, 'n', "namespace", "namespaces",
-	  ATTACH_SEPARATORS(TclGenericSeparators)},
+	{ true, 'p', "procedure", "procedures", },
+	{ true, 'n', "namespace", "namespaces", },
 };
 
 enum {
@@ -441,11 +433,13 @@ static void parseProc (tokenInfo *const token,
 			else
 			{
 				tagEntryInfo *e_parent = getEntryInCorkQueue (parent);
+				const char * sep = scopeSeparatorFor (getInputLanguage(),
+													  K_PROCEDURE,
+													  e_parent->kindIndex);
 				vStringCatS(ns, e_parent->name);
-				vStringCatS(ns, "::");
+				vStringCatS(ns, sep);
 				vStringNCopy(ns, token->string, len - 2);
 			}
-
 
 			if (vStringLength(ns) > 0)
 			{
@@ -453,11 +447,18 @@ static void parseProc (tokenInfo *const token,
 				e.extensionFields.scopeName = vStringValue (ns);
 			}
 
+			e.skipAutoFQEmission = 1;
 			index = makeTagEntry (&e);
 
 			if (isXtagEnabled(XTAG_QUALIFIED_TAGS))
 			{
-				vStringCatS (ns, "::");
+				const char * sep = scopeSeparatorFor (getInputLanguage(),
+													  K_PROCEDURE,
+													  vStringIsEmpty (ns)
+													  ? KIND_GHOST_INDEX
+													  : K_NAMESPACE);
+
+				vStringCatS (ns, sep);
 				vStringCatS (ns, last);
 
 				index_fq = makeSimpleTag (ns, K_PROCEDURE);
@@ -532,7 +533,7 @@ static void parseNamespace (tokenInfo *const token,
 	}
 
 	int index = makeSimpleTag (token->string, K_NAMESPACE);
-	if (parent != CORK_NIL && strncmp(vStringValue (token->string), "::", 2))
+	if (parent != CORK_NIL && !isAbsoluteIdentifier(token))
 	{
 		tagEntryInfo *e = getEntryInCorkQueue (index);
 		e->extensionFields.scopeIndex = parent;
@@ -636,5 +637,8 @@ extern parserDefinition* TclParser (void)
 	def->parser     = findTclTags;
 	def->useCork    = true;
 	def->requestAutomaticFQTag = true;
+	def->defaultScopeSeparator = "::";
+	def->defaultRootScopeSeparator = "::";
+
 	return def;
 }

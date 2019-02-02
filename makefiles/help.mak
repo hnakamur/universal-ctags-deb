@@ -24,3 +24,10 @@ help:
 	@echo "CATEGORIES=<category>             - Only run tests available under folder Units/<category>.r"
 	@echo "UNITS=<case>[,<case>]             - Only run tests named Units/[category.r/]/<case>.d in units target"
 	@echo "                                                         Tmain/<case>.d in tmain target"
+	@echo ""
+	@echo "Input validation target:"
+	@echo ""
+	@echo "make validate-input                 - Validate the input files themselves, not ctags"
+	@echo
+	@echo "Arguments that can be used in input validation target:"
+	@echo "VALIDATORS=<validator>,[<validator>] - Validate only input files expecting validated by VALIDATORs"

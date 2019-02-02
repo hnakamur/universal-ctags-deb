@@ -22,14 +22,20 @@ s	NONE	yes	NONE	s--	no	Scope of tag definition (`p' can be used for printing its
 t	typeref	yes	NONE	s--	no	Type and name of a variable or typedef
 x	xpath	no	NONE	s--	no	xpath for the tag
 z	kind	no	NONE	s--	no	Include the "kind:" key in kind field (use k or K) in tags output, kind full name in xref output
+-	properties	no	AutoIt	s--	no	properties (static, volatile, ...)
 -	properties	no	C	s--	no	properties (static, inline, mutable,...)
 -	captures	no	C++	s--	no	lambda capture list
 -	name	yes	C++	s--	no	aliased names
 -	properties	no	C++	s--	no	properties (static, inline, mutable,...)
 -	template	no	C++	s--	no	template parameters
 -	properties	no	CUDA	s--	no	properties (static, inline, mutable,...)
+-	howImported	no	Go	s--	no	how the package is imported ("inline" for `.' or "init" for `_')
+-	package	yes	Go	s--	no	the real package specified by the package name
+-	packageName	yes	Go	s--	no	the name for referring the package
 -	assignment	yes	LdScript	s--	no	how a value is assigned to the symbol
 -	sectionMarker	no	Markdown	s--	no	character used for declaring section(#, ##, =, or -)
+-	category	yes	ObjectiveC	s--	no	category attached to the class
+-	protocols	yes	ObjectiveC	s--	no	protocols that the class (or category) confirms to
 -	home	yes	Passwd	s--	no	home directory
 -	shell	yes	Passwd	s--	no	login shell
 -	decorators	no	Python	s--	no	decorators on functions and classes

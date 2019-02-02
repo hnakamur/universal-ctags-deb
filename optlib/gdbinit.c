@@ -4,18 +4,12 @@
 #include "general.h"
 #include "parse.h"
 #include "routines.h"
+#include "field.h"
+#include "xtag.h"
 
 
-static void initializeGdbinitParser (const langType language)
+static void initializeGdbinitParser (const langType language CTAGS_ATTR_UNUSED)
 {
-	{
-		kindDefinition *kdef = getLanguageKindForLetter (language, 'D');
-		enableKind (kdef, false);
-	}
-	{
-		kindDefinition *kdef = getLanguageKindForLetter (language, 'l');
-		enableKind (kdef, false);
-	}
 }
 
 extern parserDefinition* GdbinitParser (void)
@@ -39,13 +33,13 @@ extern parserDefinition* GdbinitParser (void)
 		  true, 'd', "definition", "definitions",
 		},
 		{
-		  true, 'D', "document", "documents",
+		  false, 'D', "document", "documents",
 		},
 		{
 		  true, 't', "toplevelVariable", "toplevel variables",
 		},
 		{
-		  true, 'l', "localVariable", "local variables",
+		  false, 'l', "localVariable", "local variables",
 		},
 	};
 	static tagRegexTable GdbinitTagRegexTable [] = {

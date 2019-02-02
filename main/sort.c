@@ -25,11 +25,11 @@
 #include <stdio.h>
 
 #include "debug.h"
-#include "entry.h"
-#include "options.h"
+#include "entry_p.h"
+#include "options_p.h"
 #include "read.h"
 #include "routines.h"
-#include "sort.h"
+#include "sort_p.h"
 
 /*
 *   FUNCTION DEFINITIONS

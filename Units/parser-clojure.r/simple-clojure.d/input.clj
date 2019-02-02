@@ -5,8 +5,11 @@
 (defn function-with-body []
     (println "body"))
 
+(clojure.core/defn core-function-with-body []
+    (println "core"))
+
 '(defn quoted-function [])
 (quote quoted-function2 [])
 
-(ns another.name)
+(clojure.core/ns another.name)
 (defn x [])

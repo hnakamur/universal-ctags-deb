@@ -4,6 +4,8 @@
 #include "general.h"
 #include "parse.h"
 #include "routines.h"
+#include "field.h"
+#include "xtag.h"
 
 
 static void initializeManParser (const langType language CTAGS_ATTR_UNUSED)
@@ -22,6 +24,9 @@ extern parserDefinition* ManParser (void)
 		"7",
 		"8",
 		"9",
+		"3pm",
+		"3stap",
+		"7stap",
 		NULL
 	};
 

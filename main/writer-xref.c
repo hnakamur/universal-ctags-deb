@@ -10,22 +10,21 @@
 #include "general.h"  /* must always come first */
 
 #include "entry.h"
-#include "fmt.h"
+#include "field_p.h"
+#include "fmt_p.h"
 #include "mio.h"
-#include "options.h"
-#include "writer.h"
+#include "options_p.h"
+#include "writer_p.h"
 
 
 static int writeXrefEntry  (tagWriter *writer CTAGS_ATTR_UNUSED,
 							MIO * mio, const tagEntryInfo *const tag);
-static void buildXrefFqTagCache (tagWriter *writer, tagEntryInfo *const tag);
 
 tagWriter xrefWriter = {
 	.writeEntry = writeXrefEntry,
 	.writePtagEntry = NULL,
 	.preWriteEntry = NULL,
 	.postWriteEntry = NULL,
-	.buildFqTagCache = buildXrefFqTagCache,
 	.defaultFileName = NULL,
 };
 
@@ -61,12 +60,4 @@ static int writeXrefEntry (tagWriter *writer CTAGS_ATTR_UNUSED,
 	length++;
 
 	return length;
-}
-
-static void buildXrefFqTagCache (tagWriter *writer, tagEntryInfo *const tag)
-{
-	renderFieldEscaped (writer->type, FIELD_SCOPE_KIND_LONG, tag,
-			    NO_PARSER_FIELD, NULL);
-	renderFieldEscaped (writer->type, FIELD_SCOPE, tag,
-			    NO_PARSER_FIELD, NULL);
 }

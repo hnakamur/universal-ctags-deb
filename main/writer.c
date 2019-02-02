@@ -8,8 +8,8 @@
 */
 
 #include "general.h"
-#include "entry.h"
-#include "writer.h"
+#include "entry_p.h"
+#include "writer_p.h"
 
 extern tagWriter uCtagsWriter;
 extern tagWriter eCtagsWriter;
@@ -71,13 +71,6 @@ extern int writerWritePtag (MIO * mio,
 								   pattern, parserName);
 
 }
-
-extern void writerBuildFqTagCache (tagEntryInfo *const tag)
-{
-	if (writer->buildFqTagCache)
-		writer->buildFqTagCache (writer, tag);
-}
-
 
 extern bool ptagMakeCtagsOutputMode (ptagDesc *desc, void *data CTAGS_ATTR_UNUSED)
 {

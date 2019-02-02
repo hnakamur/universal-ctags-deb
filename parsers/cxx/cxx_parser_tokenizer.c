@@ -28,11 +28,8 @@
 
 static void cxxParserSkipToNonWhiteSpace(void)
 {
-	if(!isspace(g_cxx.iChar))
-		return;
-	do
+	while(cppIsspace(g_cxx.iChar))
 		g_cxx.iChar = cppGetc();
-	while(isspace(g_cxx.iChar));
 }
 
 enum CXXCharType
@@ -289,7 +286,7 @@ static CXXCharTypeData g_aCharTable[128] =
 	},
 	// 036 (0x24) '$'
 	{
-		0,
+		CXXCharTypeStartOfIdentifier | CXXCharTypePartOfIdentifier,
 		0,
 		0
 	},
@@ -1110,10 +1107,10 @@ void cxxParserUngetCurrentToken(void)
 
 	if(g_cxx.pUngetToken)
 		cxxTokenDestroy(g_cxx.pUngetToken);
-	
-	
+
+
 	g_cxx.pUngetToken = cxxTokenChainTakeLast(g_cxx.pTokenChain);
-	
+
 	CXX_DEBUG_ASSERT(g_cxx.pUngetToken == g_cxx.pToken,"Oops.. ungot a token that was not the chain tail");
 
 	g_cxx.pToken = cxxTokenChainLast(g_cxx.pTokenChain);
@@ -1188,11 +1185,11 @@ bool cxxParserParseNextToken(void)
 		{
 			// may be followed by space!
 			g_cxx.iChar = cppGetc();
-			if(isspace(g_cxx.iChar))
+			if(cppIsspace(g_cxx.iChar))
 			{
 				t->bFollowedBySpace = true;
 				g_cxx.iChar = cppGetc();
-				while(isspace(g_cxx.iChar))
+				while(cppIsspace(g_cxx.iChar))
 					g_cxx.iChar = cppGetc();
 			}
 
@@ -1208,7 +1205,7 @@ bool cxxParserParseNextToken(void)
 					// a separate assignment
 					vStringPut(t->pszWord,g_cxx.iChar);
 					g_cxx.iChar = cppGetc();
-					t->bFollowedBySpace = isspace(g_cxx.iChar);
+					t->bFollowedBySpace = cppIsspace(g_cxx.iChar);
 				}
 				return true;
 			}
@@ -1231,46 +1228,8 @@ bool cxxParserParseNextToken(void)
 			if(cxxKeywordIsDisabled((CXXKeyword)iCXXKeyword))
 			{
 				t->eType = CXXTokenTypeIdentifier;
-			} else if (isInputHeaderFile ()
-					   && (iCXXKeyword == CXXKeywordPUBLIC
-						   || iCXXKeyword == CXXKeywordPROTECTED
-						   || iCXXKeyword == CXXKeywordPRIVATE))
-			{
-				int c0 = g_cxx.iChar;
-
-				if (c0 == ':')
-				{
-					/* Specifying the scope of struct/union/class member */
-					goto assign_keyword;
-				}
-
-				if (isspace (c0))
-				{
-					int c1;
-
-					cxxParserSkipToNonWhiteSpace ();
-					c1 = g_cxx.iChar;
-					cppUngetc (c1);
-					g_cxx.iChar = c0;
-
-					if (c1 == ':')
-					{
-						/* Specifying the scope of struct/union/class member */
-						goto assign_keyword;
-					}
-					else if (isalpha (c1))
-					{
-
-						/* Specifying the scope of class inheritance */
-						goto assign_keyword;
-					}
-				}
-
-				t->eType = CXXTokenTypeIdentifier;
-				g_cxx.bConfirmedCPPLanguage = false;
-				cxxKeywordEnablePublicProtectedPrivate(false);
 			} else {
-			assign_keyword:
+
 				t->eType = CXXTokenTypeKeyword;
 				t->eKeyword = (CXXKeyword)iCXXKeyword;
 
@@ -1334,7 +1293,7 @@ bool cxxParserParseNextToken(void)
 			}
 		}
 
-		t->bFollowedBySpace = isspace(g_cxx.iChar);
+		t->bFollowedBySpace = cppIsspace(g_cxx.iChar);
 
 		return true;
 	}
@@ -1357,7 +1316,7 @@ bool cxxParserParseNextToken(void)
 				g_cxx.iChar = cppGetc();
 			}
 		}
-		t->bFollowedBySpace = isspace(g_cxx.iChar);
+		t->bFollowedBySpace = cppIsspace(g_cxx.iChar);
 		return true;
 	}
 
@@ -1396,7 +1355,7 @@ bool cxxParserParseNextToken(void)
 				break;
 			}
 		}
-		t->bFollowedBySpace = isspace(g_cxx.iChar);
+		t->bFollowedBySpace = cppIsspace(g_cxx.iChar);
 		return true;
 	}
 #else
@@ -1404,9 +1363,10 @@ bool cxxParserParseNextToken(void)
 	{
 		t->eType = CXXTokenTypeStringConstant;
 		vStringPut(t->pszWord,'"');
+		vStringCat(t->pszWord,cppGetLastCharOrStringContents());
 		vStringPut(t->pszWord,'"');
 		g_cxx.iChar = cppGetc();
-		t->bFollowedBySpace = isspace(g_cxx.iChar);
+		t->bFollowedBySpace = cppIsspace(g_cxx.iChar);
 		return true;
 	}
 #endif
@@ -1443,7 +1403,7 @@ bool cxxParserParseNextToken(void)
 				break;
 			}
 		}
-		t->bFollowedBySpace = isspace(g_cxx.iChar);
+		t->bFollowedBySpace = cppIsspace(g_cxx.iChar);
 		return true;
 	}
 #else
@@ -1451,9 +1411,10 @@ bool cxxParserParseNextToken(void)
 	{
 		t->eType = CXXTokenTypeCharacterConstant;
 		vStringPut(t->pszWord,'\'');
+		vStringCat(t->pszWord,cppGetLastCharOrStringContents());
 		vStringPut(t->pszWord,'\'');
 		g_cxx.iChar = cppGetc();
-		t->bFollowedBySpace = isspace(g_cxx.iChar);
+		t->bFollowedBySpace = cppIsspace(g_cxx.iChar);
 		return true;
 	}
 #endif
@@ -1473,7 +1434,7 @@ bool cxxParserParseNextToken(void)
 			vStringPut(t->pszWord,g_cxx.iChar);
 		}
 
-		t->bFollowedBySpace = isspace(g_cxx.iChar);
+		t->bFollowedBySpace = cppIsspace(g_cxx.iChar);
 		return true;
 	}
 
@@ -1493,7 +1454,7 @@ bool cxxParserParseNextToken(void)
 				g_cxx.iChar = cppGetc();
 			} while(g_cxx.iChar == iChar);
 		}
-		t->bFollowedBySpace = isspace(g_cxx.iChar);
+		t->bFollowedBySpace = cppIsspace(g_cxx.iChar);
 		return true;
 	}
 
@@ -1515,7 +1476,7 @@ bool cxxParserParseNextToken(void)
 						(CXXCharTypeOperator | CXXCharTypeNamedSingleOrOperatorToken)
 				);
 		}
-		t->bFollowedBySpace = isspace(g_cxx.iChar);
+		t->bFollowedBySpace = cppIsspace(g_cxx.iChar);
 		return true;
 	}
 
@@ -1524,7 +1485,7 @@ bool cxxParserParseNextToken(void)
 		t->eType = g_aCharTable[g_cxx.iChar].uSingleTokenType;
 		vStringPut(t->pszWord,g_cxx.iChar);
 		g_cxx.iChar = cppGetc();
-		t->bFollowedBySpace = isspace(g_cxx.iChar);
+		t->bFollowedBySpace = cppIsspace(g_cxx.iChar);
 		return true;
 	}
 
@@ -1540,14 +1501,14 @@ bool cxxParserParseNextToken(void)
 			g_cxx.iChar = cppGetc();
 			uInfo = UINFO(g_cxx.iChar);
 		}
-		t->bFollowedBySpace = isspace(g_cxx.iChar);
+		t->bFollowedBySpace = cppIsspace(g_cxx.iChar);
 		return true;
 	}
 
 	t->eType = CXXTokenTypeUnknown;
 	vStringPut(t->pszWord,g_cxx.iChar);
 	g_cxx.iChar = cppGetc();
-	t->bFollowedBySpace = isspace(g_cxx.iChar);
+	t->bFollowedBySpace = cppIsspace(g_cxx.iChar);
 
 	return true;
 }

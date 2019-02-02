@@ -6,14 +6,15 @@ jobs:
        - image: docker.io/fedora:latest
      steps:
        - run:
-           name: Install Git
+           name: Install Git and Gdb
            command: |
-             dnf -y install git || :
+             dnf -y install git gdb || :
        - checkout
        - run:
            name: Install build tools
            command: |
              dnf -y install gcc automake autoconf pkgconfig bmake aspell-devel aspell-en libxml2-devel jansson-devel libyaml-devel findutils || :
+             dnf -y install jq puppet || :
        - run:
            name: Build
            command: |
@@ -23,7 +24,7 @@ jobs:
        - run:
            name: Test
            command: |
-             MAKE=bmake bmake check roundtrip CIRCLECI=1
+             MAKE=bmake bmake validate-input check roundtrip CIRCLECI=1
    centos_make:
      working_directory: ~/universal-ctags
      docker:

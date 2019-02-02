@@ -9,12 +9,14 @@
 
 #include "general.h"  /* must always come first */
 
-#include "entry.h"
+#include "entry_p.h"
+#include "field_p.h"
 #include "mio.h"
-#include "options.h"
+#include "options_p.h"
+#include "parse_p.h"
+#include "ptag_p.h"
 #include "read.h"
-#include "ptag.h"
-#include "writer.h"
+#include "writer_p.h"
 
 
 #define CTAGS_FILE  "tags"
@@ -27,7 +29,6 @@ static int writeCtagsPtagEntry (tagWriter *writer CTAGS_ATTR_UNUSED,
 								const char *const fileName,
 								const char *const pattern,
 								const char *const parserName);
-static void buildCtagsFqTagCache (tagWriter *writer CTAGS_ATTR_UNUSED, tagEntryInfo *const tag);
 
 struct rejection {
 	bool rejectedInThisRendering;
@@ -39,7 +40,6 @@ tagWriter uCtagsWriter = {
 	.writePtagEntry = writeCtagsPtagEntry,
 	.preWriteEntry = NULL,
 	.postWriteEntry = NULL,
-	.buildFqTagCache = buildCtagsFqTagCache,
 	.defaultFileName = CTAGS_FILE,
 };
 
@@ -63,20 +63,22 @@ tagWriter eCtagsWriter = {
 	.writePtagEntry = writeCtagsPtagEntry,
 	.preWriteEntry = beginECtagsFile,
 	.postWriteEntry = endECTagsFile,
-	.buildFqTagCache = buildCtagsFqTagCache,
 	.defaultFileName = CTAGS_FILE,
 };
 
 static const char* escapeFieldValue (tagWriter *writer, const tagEntryInfo * tag, fieldType ftype)
 {
-	bool *reject = NULL;
-
 	if (writer->private)
 	{
 		struct rejection * rej = writer->private;
-		reject = &rej->rejectedInThisRendering;
+		if (!rej->rejectedInThisRendering)
+			rej->rejectedInThisRendering = doesFieldHaveWhitespaceChar (ftype, tag, NO_PARSER_FIELD);
 	}
-	return renderFieldEscaped (writer->type, ftype, tag, NO_PARSER_FIELD, reject);
+
+	if (writer->type == WRITER_E_CTAGS && doesFieldHaveRenderer(ftype, true))
+		return renderFieldNoEscaping (ftype, tag, NO_PARSER_FIELD);
+	else
+		return renderField (ftype, tag, NO_PARSER_FIELD);
 }
 
 static int renderExtensionFieldMaybe (tagWriter *writer, int xftype, const tagEntryInfo *const tag, char sep[2], MIO *mio)
@@ -98,13 +100,7 @@ static int addParserFields (tagWriter *writer, MIO * mio, const tagEntryInfo *co
 {
 	unsigned int i;
 	int length = 0;
-	bool *reject = NULL;
-
-	if (writer->private)
-	{
-		struct rejection *rej = writer->private;
-		reject = &rej->rejectedInThisRendering;
-	}
+	struct rejection * rej = writer->private;
 
 	for (i = 0; i < tag->usedParserFields; i++)
 	{
@@ -112,10 +108,18 @@ static int addParserFields (tagWriter *writer, MIO * mio, const tagEntryInfo *co
 		if (! isFieldEnabled (f->ftype))
 			continue;
 
+		if (rej && (!rej->rejectedInThisRendering))
+			rej->rejectedInThisRendering = doesFieldHaveWhitespaceChar (f->ftype, tag, NO_PARSER_FIELD);
+
+		const char *v;
+		if (writer->type == WRITER_E_CTAGS && doesFieldHaveRenderer(f->ftype, true))
+			v = renderFieldNoEscaping (f->ftype, tag, i);
+		else
+			v = renderField (f->ftype, tag, i);
+
 		length += mio_printf(mio, "\t%s:%s",
 							 getFieldName (f->ftype),
-							 renderFieldEscaped (writer->type,
-												 f->ftype, tag, i, reject));
+							 v);
 	}
 	return length;
 }
@@ -240,10 +244,19 @@ static int writeCtagsEntry (tagWriter *writer,
 			      escapeFieldValue (writer, tag, FIELD_NAME),
 			      escapeFieldValue (writer, tag, FIELD_INPUT_FILE));
 
+	/* This is for handling 'common' of 'fortran'.  See the
+	   description of --excmd=mixed in ctags.1.  In tags output, what
+	   we call "pattern" is instructions for vi.
+
+	   However, in the other formats, pattern should be pattern as its name. */
 	if (tag->lineNumberEntry)
 		length += writeLineNumberEntry (writer, mio, tag);
 	else
+	{
+		if (Option.locate == EX_COMBINE)
+			length += mio_printf(mio, "%lu;", tag->lineNumber + (Option.backward? 1: -1));
 		length += mio_puts(mio, escapeFieldValue(writer, tag, FIELD_PATTERN));
+	}
 
 	if (includeExtensionFlags ())
 	{
@@ -282,10 +295,4 @@ static int writeCtagsPtagEntry (tagWriter *writer CTAGS_ATTR_UNUSED,
 			      PSEUDO_TAG_PREFIX, desc->name,
 			      OPT(fileName), OPT(pattern));
 #undef OPT
-}
-
-static void buildCtagsFqTagCache (tagWriter *writer CTAGS_ATTR_UNUSED, tagEntryInfo *const tag)
-{
-	escapeFieldValue (writer, tag, FIELD_SCOPE_KIND_LONG);
-	escapeFieldValue (writer, tag, FIELD_SCOPE);
 }
