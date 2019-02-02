@@ -1,3 +1,9 @@
+universal-ctags (0+git20190201-1ppa1~ubuntu18.04.1) bionic; urgency=medium
+
+  * New upstream version 0+git20190201
+
+ -- Hiroaki Nakamura <hnakamur@gmail.com>  Sat, 02 Feb 2019 21:54:11 +0900
+
 universal-ctags (0+git20180712-1ppa1~ubuntu18.04.1) bionic; urgency=medium
 
   * New upstream version 0+git20180712
